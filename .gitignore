@@ -1,0 +1,14 @@
+**/.DS_Store
+**/._.DS_Store
+**/venv/
+**/.idea/
+**/.cache/
+**/.ipython/
+**/.jupyter/
+**/.local/
+**/.ipynb_checkpoints/
+**/__pycache__/
+**/data/
+**/temp/
+**/.scrapy
+**/.keras
