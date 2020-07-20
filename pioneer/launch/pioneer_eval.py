@@ -15,7 +15,7 @@ from pioneer.envs.pioneer_env import PioneerSceneRandomizer, RandomizedPioneerEn
 
 
 def prepare_env():
-    randomizer = PioneerSceneRandomizer(source='/Users/xdralex/Work/curiosity/pioneer2/pioneer/envs/assets/pioneer4.xml',
+    randomizer = PioneerSceneRandomizer(source='/Users/xdralex/Work/curiosity/pioneer/pioneer/envs/assets/pioneer4.xml',
                                         target_space=spaces.Box(low=np.array([5.0, -3, 1], dtype=np.float32),
                                                                 high=np.array([6.0, 3, 3], dtype=np.float32)),
                                         obstacle_pos_space=spaces.Box(low=np.array([3, -2], dtype=np.float32),

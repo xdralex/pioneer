@@ -30,8 +30,8 @@ class MujocoKinematicEnv(gym.Env):
                  model_path: str,
                  frame_skip: int,
                  vel_to_pos: Union[float, np.ndarray] = 0.2,
-                 render_width: int = 500,
-                 render_height: int = 500):
+                 render_width: int = 1024,
+                 render_height: int = 1024):
 
         self.frame_skip = frame_skip
         self.vel_to_pos = vel_to_pos
