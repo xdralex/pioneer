@@ -15,13 +15,21 @@ from pioneer.envs.pioneer_env import PioneerSceneRandomizer, RandomizedPioneerEn
 
 
 def prepare_env():
-    randomizer = PioneerSceneRandomizer(source='/Users/xdralex/Work/curiosity/pioneer/pioneer/envs/assets/pioneer4.xml',
+    # randomizer = PioneerSceneRandomizer(source='/Users/xdralex/Work/curiosity/pioneer2/pioneer/envs/assets/pioneer4.xml',
+    #                                     target_space=spaces.Box(low=np.array([5.0, -3, 1], dtype=np.float32),
+    #                                                             high=np.array([6.0, 3, 3], dtype=np.float32)),
+    #                                     obstacle_pos_space=spaces.Box(low=np.array([3, -2], dtype=np.float32),
+    #                                                                   high=np.array([5, 2], dtype=np.float32)),
+    #                                     obstacle_size_space=spaces.Box(low=np.array([0.1, 0.1, 3], dtype=np.float32),
+    #                                                                    high=np.array([0.1, 0.1, 5], dtype=np.float32)))
+
+    randomizer = PioneerSceneRandomizer(source='/Users/xdralex/Work/curiosity/pioneer/pioneer/envs/assets/pioneer6.xml',
                                         target_space=spaces.Box(low=np.array([5.0, -3, 1], dtype=np.float32),
                                                                 high=np.array([6.0, 3, 3], dtype=np.float32)),
                                         obstacle_pos_space=spaces.Box(low=np.array([3, -2], dtype=np.float32),
                                                                       high=np.array([5, 2], dtype=np.float32)),
-                                        obstacle_size_space=spaces.Box(low=np.array([0.1, 0.1, 3], dtype=np.float32),
-                                                                       high=np.array([0.1, 0.1, 5], dtype=np.float32)))
+                                        obstacle_size_space=spaces.Box(low=np.array([0.001, 0.001, 0.001], dtype=np.float32),
+                                                                       high=np.array([0.001, 0.001, 0.001], dtype=np.float32)))
 
     pioneer_env = RandomizedPioneerEnv(randomizer, temp_dir='/Users/xdralex/pioneer/environments', retain_samples=True)
 
@@ -43,7 +51,7 @@ config['log_level'] = 'INFO'
 config['evaluation_config'] = {'explore': False}
 
 agent = ppo.PPOTrainer(config=config, env='Pioneer-v1')
-agent.restore('/Users/xdralex/ray_results/PPO_Pioneer-v1_2020-07-18_10-23-04kcxrx1ia-4DOF-RND2/checkpoint_2512/checkpoint-2512')
+agent.restore('/Users/xdralex/ray_results/PPO_Pioneer-v1_2020-07-20_16-57-06t7ouhjap/checkpoint_601/checkpoint-601')
 
 print(agent.get_policy())
 print(agent.get_policy().model)
@@ -67,4 +75,4 @@ for i in range(10):
             recorder.capture_frame()
             episode_reward += reward
 
-        print(episode_reward)
+        print(f'{recorder.path} => {episode_reward}')

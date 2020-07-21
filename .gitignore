@@ -9,6 +9,5 @@
 **/.ipynb_checkpoints/
 **/__pycache__/
 **/data/
-**/temp/
 **/.scrapy
 **/.keras

@@ -128,10 +128,7 @@ class PioneerEnv(MujocoKinematicEnv, utils.EzPickle):
 
             pointer_coords,
             target_coords,
-            pointer_target_diff,
-
-            self.scene.obstacle_pos,
-            self.scene.obstacle_size
+            pointer_target_diff
         ])
 
 

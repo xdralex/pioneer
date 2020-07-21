@@ -16,6 +16,8 @@ ray[debug]
 ray[rllib]
 ray[tune]
 
+pybullet
+
 dm-tree
 requests
 opencv-python
