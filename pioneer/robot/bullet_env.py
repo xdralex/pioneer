@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from time import sleep
 from typing import Dict, Tuple, TypeVar, List, Union, Generic, Optional
 
 import gym
@@ -8,7 +9,7 @@ from pybullet_utils import bullet_client
 from pybullet_utils.bullet_client import BulletClient
 
 from pioneer.robot.bullet_bindings import JointInfo, BodyInfo
-from pioneer.robot.bullet_scene import Scene, Item, Joint
+from pioneer.robot.bullet_scene import Scene, Item, Joint, World
 
 Action = TypeVar('Action')
 Observation = TypeVar('Observation')
@@ -18,7 +19,7 @@ Observation = TypeVar('Observation')
 class BulletRenderConfig:
     camera_target: Tuple[float, float, float] = (0, 0, 0)
 
-    camera_distance: float = 10.0
+    camera_distance: float = 25.0
 
     camera_yaw: float = 120.0
     camera_pitch: float = -30.0
@@ -34,12 +35,17 @@ class BulletRenderConfig:
 
 @dataclass
 class SimulationConfig:
+    mjcf_original_colors: bool = True
     self_collision: bool = False
     collision_parent: bool = True
 
     @property
-    def collision_flags(self) -> int:
+    def model_load_flags(self) -> int:
         flags = 0
+
+        if self.mjcf_original_colors:
+            flags |= pybullet.MJCF_COLORS_FROM_FILE
+
         if self.self_collision:
             flags |= pybullet.URDF_USE_SELF_COLLISION
 
@@ -60,6 +66,7 @@ class BulletEnv(gym.Env, Generic[Action, Observation]):
 
         self.bullet: Optional[BulletClient] = None
         self.scene: Optional[Scene] = None
+        self.world: Optional[World] = None
 
         self.model_path = model_path
         self.headless = headless
@@ -75,8 +82,10 @@ class BulletEnv(gym.Env, Generic[Action, Observation]):
         connection_mode = pybullet.DIRECT if self.headless else pybullet.GUI
         self.bullet = bullet_client.BulletClient(connection_mode=connection_mode)
         self.scene = Scene()
+        self.world = World(bullet=self.bullet)
 
-        object_ids = self.bullet.loadMJCF(self.model_path, flags=self.simulation_config.collision_flags)
+        # object_ids = self.bullet.loadMJCF(self.model_path, flags=self.simulation_config.model_load_flags)
+        object_ids = [self.bullet.loadURDF(self.model_path, flags=self.simulation_config.model_load_flags)]
 
         for body_id in object_ids:
             body_info = BodyInfo(*self.bullet.getBodyInfo(body_id))
@@ -117,7 +126,8 @@ class BulletEnv(gym.Env, Generic[Action, Observation]):
                 elif joint.joint_type == pybullet.JOINT_FIXED:
                     pass
                 else:
-                    raise AssertionError(f'Only revolute and fixed joints are supported now, got: {joint_info}')
+                    pass
+                    # raise AssertionError(f'Only revolute and fixed joints are supported now, got: {joint_info}')
 
         # print(self.bullet.getBodyInfo(object_ids[1]))
         # print(self.bullet.getNumJoints(object_ids[1]))
@@ -169,8 +179,24 @@ class BulletEnv(gym.Env, Generic[Action, Observation]):
 
 
 if __name__ == '__main__':
-    env = BulletEnv(model_path='/Users/xdralex/Work/curiosity/pioneer/pioneer/robot/assets/pioneer6.xml', headless=False)
+    env = BulletEnv(model_path='/Users/xdralex/Work/curiosity/pioneer/pioneer/robot/assets/pioneer.urdf', headless=False)
     env.reset_env()
 
+    env.bullet.resetDebugVisualizerCamera(cameraDistance=env.render_config.camera_distance,
+                                          cameraYaw=env.render_config.camera_yaw,
+                                          cameraPitch=env.render_config.camera_pitch,
+                                          cameraTargetPosition=env.render_config.camera_target)
+
+    joint = env.scene.joints_by_name['robot:hinge1_to_arm1']
+    joint.control_velocity(velocity=1.0)
+
     while True:
-        env.render()
+        rr = joint.upper_limit - joint.lower_limit
+        if joint.position() < joint.lower_limit + 0.05 * rr:
+            joint.control_velocity(velocity=1.0)
+
+        if joint.position() > joint.upper_limit - 0.05 * rr:
+            joint.control_velocity(velocity=-1.0)
+
+        env.world.step()
+        sleep(env.world.timestep)

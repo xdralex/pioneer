@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional
 
+import pybullet
 from pybullet_utils.bullet_client import BulletClient
 
+from pioneer.collections_util import set_optional_kv
 from pioneer.robot.bullet_bindings import BasePositionAndOrientation, LinkState, BaseVelocity, JointState
 
 
@@ -98,7 +100,41 @@ class Joint(object):
 
     def velocity(self) -> float:
         data = JointState(*self.bullet.getJointState(self.body_id, self.joint_index))
-        return data.joint_position
+        return data.joint_velocity
+
+    def control_position(self,
+                         position: float,
+                         velocity: Optional[float] = None,
+                         max_velocity: Optional[float] = None,
+                         max_force: Optional[float] = None,
+                         position_gain: Optional[float] = None,
+                         velocity_gain: Optional[float] = None):
+        kwargs = {
+            'bodyUniqueId': self.body_id,
+            'jointIndex': self.joint_index,
+            'controlMode': pybullet.POSITION_CONTROL,
+            'targetPosition': position
+        }
+        set_optional_kv(kwargs, 'targetVelocity', velocity)
+        set_optional_kv(kwargs, 'maxVelocity', max_velocity)
+        set_optional_kv(kwargs, 'force', max_force)
+        set_optional_kv(kwargs, 'positionGain', position_gain)
+        set_optional_kv(kwargs, 'velocityGain', velocity_gain)
+
+        self.bullet.setJointMotorControl2(**kwargs)
+
+    def control_velocity(self,
+                         velocity: float,
+                         max_force: Optional[float] = None):
+        kwargs = {
+            'bodyUniqueId': self.body_id,
+            'jointIndex': self.joint_index,
+            'controlMode': pybullet.VELOCITY_CONTROL,
+            'targetVelocity': velocity
+        }
+        set_optional_kv(kwargs, 'force', max_force)
+
+        self.bullet.setJointMotorControl2(**kwargs)
 
 
 class Scene:
@@ -120,3 +156,23 @@ class Scene:
 
         self.joints.append(joint)
         self.joints_by_name[joint.name] = joint
+
+
+class World:
+    def __init__(self,
+                 bullet: BulletClient,
+                 frame_skip: int = 5,
+                 timestep: float = 1/240,
+                 gravity_force: float = 9.8):
+        self.bullet = bullet
+
+        self.frame_skip = frame_skip
+        self.timestep = timestep
+        self.gravity_force = gravity_force
+
+        self.bullet.setGravity(0, 0, -self.gravity_force)
+        self.bullet.setTimeStep(timestep)
+
+    def step(self):
+        for _ in range(self.frame_skip):
+            self.bullet.stepSimulation()
