@@ -93,6 +93,48 @@
         </inertial>
     </link>
 
+    <link name="robot:arm2">
+        <visual>
+            <origin rpy="0 3.1416 0" xyz="4 1 0"/>
+            <geometry>
+                <box size="10 1 2"/>
+            </geometry>
+            <material name="arm_mat"/>
+        </visual>
+        <inertial>
+            <mass value="1.0"/>
+           <inertia ixx="1.0" ixy="-0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+        </inertial>
+    </link>
+
+    <link name="robot:rotator2">
+        <visual>
+            <origin rpy="0 1.5708 0" xyz="9.2 0 0"/>
+            <geometry>
+                <cylinder radius="1" length="0.4"/>
+            </geometry>
+            <material name="rotator_mat"/>
+        </visual>
+        <inertial>
+            <mass value="1.0"/>
+           <inertia ixx="1.0" ixy="-0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+        </inertial>
+    </link>
+
+    <link name="robot:hinge2">
+        <visual>
+            <origin rpy="0 0 0" xyz="10.4 0 0"/>
+            <geometry>
+                <box size="2 0.5 1"/>
+            </geometry>
+            <material name="hinge_mat"/>
+        </visual>
+        <inertial>
+            <mass value="1.0"/>
+           <inertia ixx="1.0" ixy="-0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+        </inertial>
+    </link>
+
     <joint name="world_to_base" type="fixed">
         <parent link="world"/>
         <child link="robot:base"/>
@@ -101,7 +143,7 @@
     <joint name="robot:base_to_rotator1" type="revolute">
         <parent link="robot:base"/>
         <child link="robot:rotator1"/>
-        <limit lower="-1.309" upper="1.309" effort="1.0"/>
+        <limit lower="-3.1416" upper="3.1416" effort="1.0"/>
         <axis xyz="0 0 1"/>
     </joint>
 
@@ -118,4 +160,24 @@
         <axis xyz="0 1 0"/>
     </joint>
 
+    <joint name="robot:arm1_to_arm2" type="revolute">
+        <parent link="robot:arm1"/>
+        <child link="robot:arm2"/>
+        <limit lower="-1.309" upper="1.309" effort="1.0"/>
+        <origin xyz="0 0 11"/>
+        <axis xyz="0 1 0"/>
+    </joint>
+
+    <joint name="robot:arm2_to_rotator2" type="revolute">
+        <parent link="robot:arm2"/>
+        <child link="robot:rotator2"/>
+        <limit lower="-3.1416" upper="3.1416" effort="1.0"/>
+        <origin xyz="0 1 0"/>
+        <axis xyz="1 0 0"/>
+    </joint>
+
+    <joint name="robot:rotator2_to_hinge2" type="fixed">
+        <parent link="robot:rotator2"/>
+        <child link="robot:hinge2"/>
+    </joint>
 </robot>

@@ -19,7 +19,7 @@ Observation = TypeVar('Observation')
 class BulletRenderConfig:
     camera_target: Tuple[float, float, float] = (0, 0, 0)
 
-    camera_distance: float = 25.0
+    camera_distance: float = 35.0
 
     camera_yaw: float = 120.0
     camera_pitch: float = -30.0
@@ -187,15 +187,15 @@ if __name__ == '__main__':
                                           cameraPitch=env.render_config.camera_pitch,
                                           cameraTargetPosition=env.render_config.camera_target)
 
-    joint = env.scene.joints_by_name['robot:hinge1_to_arm1']
+    joint = env.scene.joints_by_name['robot:arm2_to_rotator2']
     joint.control_velocity(velocity=1.0)
 
     while True:
         rr = joint.upper_limit - joint.lower_limit
-        if joint.position() < joint.lower_limit + 0.05 * rr:
+        if joint.position() < joint.lower_limit + 0.01 * rr:
             joint.control_velocity(velocity=1.0)
 
-        if joint.position() > joint.upper_limit - 0.05 * rr:
+        if joint.position() > joint.upper_limit - 0.01 * rr:
             joint.control_velocity(velocity=-1.0)
 
         env.world.step()
