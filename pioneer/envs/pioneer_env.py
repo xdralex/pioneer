@@ -1,8 +1,10 @@
 import io
+import math
 import xml.etree.ElementTree as ET
 from contextlib import closing
 from dataclasses import dataclass
 from tempfile import NamedTemporaryFile
+from typing import Dict
 
 import mujoco_py
 import numpy as np
@@ -30,13 +32,21 @@ class PioneerScene:
 
 
 class PioneerEnv(MujocoKinematicEnv, utils.EzPickle):
-    def __init__(self, model_path, scene: PioneerScene):
+    def __init__(self, model_path, scene: PioneerScene, config: Dict):
+        self.potential_scale = float(config['potential_scale'])
+        self.step_penalty = float(config['step_penalty'])
+        self.stop_distance = float(config['stop_distance'])
+
         self.scene = scene
+        self.best_distance = math.inf
 
         utils.EzPickle.__init__(self)
         MujocoKinematicEnv.__init__(self, model_path, frame_skip=20)
 
         self.position_space = self._prepare_position_space()
+
+    def potential(self, distance: float) -> float:
+        return 1 / (distance + 1 / self.potential_scale)
 
     def step(self, action: np.ndarray):
         pointer_coords = self.get_body_com('robot:pointer')
@@ -44,21 +54,19 @@ class PioneerEnv(MujocoKinematicEnv, utils.EzPickle):
         diff_coords = pointer_coords - target_coords
         distance = np.linalg.norm(diff_coords)
 
-        reward_distance = -distance
-        # reward_control = - np.square(action).sum()
-        # reward = reward_distance + reward_control
+        reward = 0
 
-        reward = reward_distance
+        if distance < self.best_distance:
+            reward += self.potential(distance) - self.potential(self.best_distance)
+            self.best_distance = distance
+
+        reward -= self.step_penalty
 
         self.do_simulation(action, self.frame_skip)
         observation = self._get_observation()
+        done = distance < self.stop_distance
 
-        if distance < 0.05:
-            done = True
-        else:
-            done = False
-
-        return observation, reward, done, dict(reward_dist=reward_distance)
+        return observation, reward, done, dict()
 
     def viewer_setup(self):
         for key, value in DEFAULT_CAMERA_CONFIG.items():
@@ -71,6 +79,9 @@ class PioneerEnv(MujocoKinematicEnv, utils.EzPickle):
         did_reset_sim = False
         while not did_reset_sim:
             did_reset_sim = self._reset_sim()
+
+        self.best_distance = math.inf
+
         return self._get_observation()
 
     def _reset_sim(self):
@@ -137,7 +148,6 @@ class PioneerSceneRandomizer(object):
                  target_space: spaces.Space,
                  obstacle_pos_space: spaces.Space,
                  obstacle_size_space: spaces.Space):
-
         self.tree = ET.parse(source)
 
         self.target_space = target_space
@@ -183,7 +193,8 @@ class PioneerSceneRandomizer(object):
 
 
 class RandomizedPioneerEnv(Wrapper):
-    def __init__(self, randomizer: PioneerSceneRandomizer, temp_dir: str, retain_samples: bool = False):
+    def __init__(self, config: Dict, randomizer: PioneerSceneRandomizer, temp_dir: str, retain_samples: bool = False):
+        self.config = config
         self.randomizer = randomizer
         self.temp_dir = temp_dir
         self.retain_samples = retain_samples
@@ -202,4 +213,4 @@ class RandomizedPioneerEnv(Wrapper):
             f.write(scene.model)
             f.flush()
 
-            return PioneerEnv(f.name, scene)
+            return PioneerEnv(f.name, scene, self.config)

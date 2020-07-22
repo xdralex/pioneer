@@ -26,7 +26,13 @@ def prepare_env():
                                         obstacle_size_space=spaces.Box(low=np.array([0.001, 0.001, 0.001], dtype=np.float32),
                                                                        high=np.array([0.001, 0.001, 0.001], dtype=np.float32)))
 
-    pioneer_env = RandomizedPioneerEnv(randomizer, temp_dir='/Users/xdralex/pioneer/environments', retain_samples=True)
+    pioneer_config = {
+        'potential_scale': 5,
+        'step_penalty': 1 / 125,
+        'stop_distance': 0.05
+    }
+
+    pioneer_env = RandomizedPioneerEnv(pioneer_config, randomizer, temp_dir='/Users/xdralex/pioneer/environments', retain_samples=True)
 
     return TimeLimit(pioneer_env, max_episode_steps=250)
 
