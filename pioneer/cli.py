@@ -1,2 +1,2 @@
 if __name__ == '__main__':
-    import pioneer.launch.pioneer_train
+    import launch.pioneer_train
