@@ -5,7 +5,7 @@ import pybullet
 from pybullet_utils.bullet_client import BulletClient
 
 from pioneer.collections_util import set_optional_kv
-from pioneer.robot.bullet_bindings import BasePositionAndOrientation, LinkState, BaseVelocity, JointState
+from pioneer.envs.bullet.bullet_bindings import BasePositionAndOrientation, LinkState, BaseVelocity, JointState
 
 
 class Pose:
@@ -17,6 +17,9 @@ class Pose:
 
         self.position = position
         self.orientation = orientation
+
+    def __repr__(self) -> str:
+        return f'Pose(position={self.position}, orientation={self.orientation})'
 
     @property
     def xyz(self) -> Tuple[float, float, float]:
@@ -43,6 +46,9 @@ class Item(object):
         self.name = name
         self.body_id = body_id
         self.link_index = link_index
+
+    def __repr__(self) -> str:
+        return f'Item(name={self.name}, body_id={self.body_id}, link_index={self.link_index})'
 
     def world_pose(self) -> Pose:
         if self.link_index is None:
@@ -93,6 +99,12 @@ class Joint(object):
         self.lower_limit = lower_limit
         self.upper_limit = upper_limit
         self.max_velocity = max_velocity
+
+    def __repr__(self) -> str:
+        return f'Joint(name={self.name}, body_id={self.body_id}, joint_index={self.joint_index}, ' \
+               f'joint_type={self.joint_type}, ' \
+               f'damping={self.damping}, friction={self.friction}, max_force={self.max_force}, ' \
+               f'lower_limit={self.lower_limit}, upper_limit={self.upper_limit}, max_velocity={self.max_velocity})'
 
     def position(self) -> float:
         data = JointState(*self.bullet.getJointState(self.body_id, self.joint_index))
@@ -156,6 +168,12 @@ class Scene:
 
         self.joints.append(joint)
         self.joints_by_name[joint.name] = joint
+
+    def __repr__(self) -> str:
+        items_str = '\n'.join([f'\t\t{x}' for x in self.items])
+        joints_str = '\n'.join([f'\t\t{x}' for x in self.joints])
+
+        return f'Scene(\n\titems: \n{items_str} \n\tjoints: \n{joints_str} \n)'
 
 
 class World:

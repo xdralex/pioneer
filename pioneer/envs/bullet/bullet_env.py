@@ -8,15 +8,15 @@ import pybullet
 from pybullet_utils import bullet_client
 from pybullet_utils.bullet_client import BulletClient
 
-from pioneer.robot.bullet_bindings import JointInfo, BodyInfo
-from pioneer.robot.bullet_scene import Scene, Item, Joint, World
+from pioneer.envs.bullet.bullet_bindings import JointInfo, BodyInfo
+from pioneer.envs.bullet.bullet_scene import Scene, Item, Joint, World
 
 Action = TypeVar('Action')
 Observation = TypeVar('Observation')
 
 
 @dataclass
-class BulletRenderConfig:
+class RenderConfig:
     camera_target: Tuple[float, float, float] = (0, 0, 0)
 
     camera_distance: float = 35.0
@@ -62,7 +62,7 @@ class BulletEnv(gym.Env, Generic[Action, Observation]):
                  model_path: str,
                  headless: bool = True,
                  simulation_config: Optional[SimulationConfig] = None,
-                 render_config: Optional[BulletRenderConfig] = None):
+                 render_config: Optional[RenderConfig] = None):
 
         self.bullet: Optional[BulletClient] = None
         self.scene: Optional[Scene] = None
@@ -71,7 +71,7 @@ class BulletEnv(gym.Env, Generic[Action, Observation]):
         self.model_path = model_path
         self.headless = headless
         self.simulation_config = simulation_config or SimulationConfig()
-        self.render_config = render_config or BulletRenderConfig()
+        self.render_config = render_config or RenderConfig()
 
         self.metadata = {
             'render.modes': ['human', 'rgb_array'],
@@ -125,13 +125,7 @@ class BulletEnv(gym.Env, Generic[Action, Observation]):
                 elif joint.joint_type == pybullet.JOINT_FIXED:
                     pass
                 else:
-                    pass
-                    # raise AssertionError(f'Only revolute and fixed joints are supported now, got: {joint_info}')
-
-        # print(self.bullet.getBodyInfo(object_ids[1]))
-        # print(self.bullet.getNumJoints(object_ids[1]))
-        # for i in range(13):
-        #     print(self.bullet.getJointInfo(object_ids[1], i))
+                    raise AssertionError(f'Only revolute and fixed joints are supported atm, got: {joint_info}')
 
     def seed(self, seed=None) -> List[int]:
         pass
@@ -178,8 +172,10 @@ class BulletEnv(gym.Env, Generic[Action, Observation]):
 
 
 if __name__ == '__main__':
-    env = BulletEnv(model_path='/Users/xdralex/Work/curiosity/pioneer/pioneer/robot/assets/pioneer.urdf', headless=False)
+    env = BulletEnv(model_path='/Users/xdralex/Work/curiosity/pioneer/pioneer/envs/pioneer/assets/pioneer.urdf', headless=False)
     env.reset_env()
+
+    print(env.scene)
 
     env.bullet.resetDebugVisualizerCamera(cameraDistance=env.render_config.camera_distance,
                                           cameraYaw=env.render_config.camera_yaw,
