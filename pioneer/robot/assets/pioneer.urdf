@@ -33,7 +33,7 @@
     <link name="robot:base">
         <inertial>
             <mass value="1.0"/>
-           <inertia ixx="1.0" ixy="-0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+           <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
         </inertial>
     </link>
 
@@ -47,7 +47,7 @@
         </visual>
         <inertial>
             <mass value="1.0"/>
-           <inertia ixx="1.0" ixy="-0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+           <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
         </inertial>
     </link>
 
@@ -75,7 +75,7 @@
         </visual>
         <inertial>
             <mass value="1.0"/>
-           <inertia ixx="1.0" ixy="-0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
         </inertial>
     </link>
 
@@ -89,7 +89,7 @@
         </visual>
         <inertial>
             <mass value="1.0"/>
-           <inertia ixx="1.0" ixy="-0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
         </inertial>
     </link>
 
@@ -103,7 +103,7 @@
         </visual>
         <inertial>
             <mass value="1.0"/>
-           <inertia ixx="1.0" ixy="-0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
         </inertial>
     </link>
 
@@ -117,7 +117,7 @@
         </visual>
         <inertial>
             <mass value="1.0"/>
-           <inertia ixx="1.0" ixy="-0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+           <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
         </inertial>
     </link>
 
@@ -131,7 +131,77 @@
         </visual>
         <inertial>
             <mass value="1.0"/>
-           <inertia ixx="1.0" ixy="-0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+        </inertial>
+    </link>
+
+    <link name="robot:arm3">
+        <visual>
+            <origin rpy="0 0 0" xyz="1 0.5 0"/>
+            <geometry>
+                <box size="3 0.5 1"/>
+            </geometry>
+            <material name="arm_mat"/>
+        </visual>
+         <visual>
+            <origin rpy="0 0 0" xyz="1 -0.5 0"/>
+            <geometry>
+                <box size="3 0.5 1"/>
+            </geometry>
+            <material name="arm_mat"/>
+        </visual>
+        <inertial>
+            <mass value="1.0"/>
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+        </inertial>
+    </link>
+
+    <link name="robot:rotator3">
+        <visual>
+            <origin rpy="0 1.5708 0" xyz="2.6 0 0"/>
+            <geometry>
+                <cylinder radius="1" length="0.4"/>
+            </geometry>
+            <material name="rotator_mat"/>
+        </visual>
+        <inertial>
+            <mass value="1.0"/>
+           <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+        </inertial>
+    </link>
+
+    <link name="robot:effector">
+        <visual>
+            <origin rpy="0 0 0" xyz="3.2 0 0"/>
+            <geometry>
+                <box size="1.0 0.2 0.2"/>
+            </geometry>
+            <material name="hinge_mat"/>
+        </visual>
+         <visual>
+            <origin rpy="0 0 0" xyz="3.6 0 0.5"/>
+            <geometry>
+                <box size="0.2 0.2 2.5"/>
+            </geometry>
+            <material name="hinge_mat"/>
+        </visual>
+        <inertial>
+            <mass value="1.0"/>
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+        </inertial>
+    </link>
+
+    <link name="robot:pointer">
+        <visual>
+            <origin rpy="0 0 0" xyz="3.6 0 1.9"/>
+            <geometry>
+                <sphere radius="0.2"/>
+            </geometry>
+            <material name="pointer_mat"/>
+        </visual>
+        <inertial>
+            <mass value="1.0"/>
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
         </inertial>
     </link>
 
@@ -179,5 +249,31 @@
     <joint name="robot:rotator2_to_hinge2" type="fixed">
         <parent link="robot:rotator2"/>
         <child link="robot:hinge2"/>
+    </joint>
+
+    <joint name="robot:hinge2_to_arm3" type="revolute">
+        <parent link="robot:hinge2"/>
+        <child link="robot:arm3"/>
+        <limit lower="-1.5708" upper="1.5708" effort="1.0"/>
+        <origin xyz="11 0 0"/>
+        <axis xyz="0 1 0"/>
+    </joint>
+
+    <joint name="robot:arm3_to_rotator3" type="revolute">
+        <parent link="robot:arm3"/>
+        <child link="robot:rotator3"/>
+        <limit lower="-3.1416" upper="3.1416" effort="1.0"/>
+        <origin xyz="0 0 0"/>
+        <axis xyz="1 0 0"/>
+    </joint>
+
+    <joint name="robot:rotator3_to_effector" type="fixed">
+        <parent link="robot:rotator3"/>
+        <child link="robot:effector"/>
+    </joint>
+
+    <joint name="robot:effector_to_pointer" type="fixed">
+        <child link="robot:pointer"/>
+        <parent link="robot:effector"/>
     </joint>
 </robot>

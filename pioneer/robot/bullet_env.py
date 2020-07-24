@@ -84,7 +84,6 @@ class BulletEnv(gym.Env, Generic[Action, Observation]):
         self.scene = Scene()
         self.world = World(bullet=self.bullet)
 
-        # object_ids = self.bullet.loadMJCF(self.model_path, flags=self.simulation_config.model_load_flags)
         object_ids = [self.bullet.loadURDF(self.model_path, flags=self.simulation_config.model_load_flags)]
 
         for body_id in object_ids:
@@ -187,16 +186,16 @@ if __name__ == '__main__':
                                           cameraPitch=env.render_config.camera_pitch,
                                           cameraTargetPosition=env.render_config.camera_target)
 
-    joint = env.scene.joints_by_name['robot:arm2_to_rotator2']
-    joint.control_velocity(velocity=1.0)
+    target_joint = env.scene.joints_by_name['robot:arm3_to_rotator3']
+    # target_joint.control_velocity(velocity=1.0)
 
     while True:
-        rr = joint.upper_limit - joint.lower_limit
-        if joint.position() < joint.lower_limit + 0.01 * rr:
-            joint.control_velocity(velocity=1.0)
-
-        if joint.position() > joint.upper_limit - 0.01 * rr:
-            joint.control_velocity(velocity=-1.0)
+        # rr = target_joint.upper_limit - target_joint.lower_limit
+        # if target_joint.position() < target_joint.lower_limit + 0.01 * rr:
+        #     target_joint.control_velocity(velocity=1.0)
+        #
+        # if target_joint.position() > target_joint.upper_limit - 0.01 * rr:
+        #     target_joint.control_velocity(velocity=-1.0)
 
         env.world.step()
         sleep(env.world.timestep)

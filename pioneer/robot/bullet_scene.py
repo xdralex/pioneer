@@ -163,7 +163,7 @@ class World:
                  bullet: BulletClient,
                  frame_skip: int = 5,
                  timestep: float = 1/240,
-                 gravity_force: float = 9.8):
+                 gravity_force: float = 0.0):
         self.bullet = bullet
 
         self.frame_skip = frame_skip
