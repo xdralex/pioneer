@@ -1,5 +1,5 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from time import sleep
 from typing import Dict, Tuple, TypeVar, List, Union, Generic, Optional
 
 import gym
@@ -35,16 +35,17 @@ class RenderConfig:
 
 @dataclass
 class SimulationConfig:
-    mjcf_original_colors: bool = True
+    timestep: float = 1 / 240
+    frame_skip: int = 5
+
+    gravity: float = 0
+
     self_collision: bool = False
     collision_parent: bool = True
 
     @property
     def model_load_flags(self) -> int:
         flags = 0
-
-        if self.mjcf_original_colors:
-            flags |= pybullet.MJCF_COLORS_FROM_FILE
 
         if self.self_collision:
             flags |= pybullet.URDF_USE_SELF_COLLISION
@@ -56,18 +57,17 @@ class SimulationConfig:
 
         return flags
 
+    @property
+    def frames_per_second(self) -> int:
+        return int(np.round(1 / self.timestep * self.frame_skip))
 
-class BulletEnv(gym.Env, Generic[Action, Observation]):
+
+class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
     def __init__(self,
                  model_path: str,
                  headless: bool = True,
                  simulation_config: Optional[SimulationConfig] = None,
                  render_config: Optional[RenderConfig] = None):
-
-        self.bullet: Optional[BulletClient] = None
-        self.scene: Optional[Scene] = None
-        self.world: Optional[World] = None
-
         self.model_path = model_path
         self.headless = headless
         self.simulation_config = simulation_config or SimulationConfig()
@@ -75,35 +75,47 @@ class BulletEnv(gym.Env, Generic[Action, Observation]):
 
         self.metadata = {
             'render.modes': ['human', 'rgb_array'],
-            'video.frames_per_second': 25
+            'video.frames_per_second': self.simulation_config.frames_per_second
         }
 
-    def reset_env(self):
-        connection_mode = pybullet.DIRECT if self.headless else pybullet.GUI
-        self.bullet = bullet_client.BulletClient(connection_mode=connection_mode)
-        self.scene = Scene()
-        self.world = World(bullet=self.bullet)
+        self.bullet: Optional[BulletClient] = None
+        self.world: Optional[World] = None
+        self.scene: Optional[Scene] = None
 
-        object_ids = [self.bullet.loadURDF(self.model_path, flags=self.simulation_config.model_load_flags)]
+        self.reset_world()
+
+    def reset_world(self):
+        self.bullet = bullet_client.BulletClient(connection_mode=pybullet.DIRECT if self.headless else pybullet.GUI)
+        self.world = World(bullet=self.bullet,
+                           timestep=self.simulation_config.timestep,
+                           frame_skip=self.simulation_config.frame_skip,
+                           gravity=self.simulation_config.gravity)
+        self.scene = self.load_scene(self.bullet, self.model_path, self.simulation_config)
+
+    @staticmethod
+    def load_scene(bullet: BulletClient, model_path: str, simulation_config: SimulationConfig) -> Scene:
+        scene = Scene()
+
+        object_ids = [bullet.loadURDF(model_path, flags=simulation_config.model_load_flags)]
 
         for body_id in object_ids:
-            body_info = BodyInfo(*self.bullet.getBodyInfo(body_id))
-            body_item = Item(self.bullet,
+            body_info = BodyInfo(*bullet.getBodyInfo(body_id))
+            body_item = Item(bullet,
                              name=body_info.body_name.decode("utf8"),
                              body_id=body_id,
                              link_index=None)
 
-            self.scene.add_item(body_item)
+            scene.add_item(body_item)
 
-            for joint_index in range(self.bullet.getNumJoints(body_id)):
-                joint_info = JointInfo(*self.bullet.getJointInfo(body_item.body_id, joint_index))
+            for joint_index in range(bullet.getNumJoints(body_id)):
+                joint_info = JointInfo(*bullet.getJointInfo(body_item.body_id, joint_index))
 
-                joint_item = Item(self.bullet,
+                joint_item = Item(bullet,
                                   name=joint_info.link_name,
                                   body_id=body_id,
                                   link_index=joint_index)
 
-                joint = Joint(self.bullet,
+                joint = Joint(bullet,
                               item=joint_item,
                               name=joint_info.joint_name.decode("utf8"),
                               body_id=body_id,
@@ -119,22 +131,21 @@ class BulletEnv(gym.Env, Generic[Action, Observation]):
                               upper_limit=joint_info.joint_upper_limit,
                               max_velocity=joint_info.joint_max_velocity)
 
-                self.scene.add_item(joint_item)
+                scene.add_item(joint_item)
                 if joint.joint_type == pybullet.JOINT_REVOLUTE:
-                    self.scene.add_joint(joint)
+                    scene.add_joint(joint)
                 elif joint.joint_type == pybullet.JOINT_FIXED:
                     pass
                 else:
                     raise AssertionError(f'Only revolute and fixed joints are supported atm, got: {joint_info}')
 
-    def seed(self, seed=None) -> List[int]:
-        pass
+        return scene
 
-    def step(self, action: Action) -> Tuple[Observation, float, bool, Dict]:
-        pass
-
-    def reset(self) -> Observation:
-        pass
+    def reset_gui_camera(self):
+        self.bullet.resetDebugVisualizerCamera(cameraDistance=self.render_config.camera_distance,
+                                               cameraYaw=self.render_config.camera_yaw,
+                                               cameraPitch=self.render_config.camera_pitch,
+                                               cameraTargetPosition=self.render_config.camera_target)
 
     def render(self, mode='human') -> Union[None, np.ndarray]:
         if mode == 'human':
@@ -167,31 +178,23 @@ class BulletEnv(gym.Env, Generic[Action, Observation]):
         else:
             raise AssertionError(f'Render mode "{mode}" is not supported')
 
-    def close(self):
+    def reset(self) -> Observation:
+        self.reset_world()
+        return self.observe()
+
+    def step(self, action: Action) -> Tuple[Observation, float, bool, Dict]:
+        reward, done, info = self.act(action)
+        observation = self.observe()
+        return observation, reward, done, info
+
+    @abstractmethod
+    def seed(self, seed=None) -> List[int]:
         pass
 
+    @abstractmethod
+    def act(self, action: Action) -> Tuple[float, bool, Dict]:
+        pass
 
-if __name__ == '__main__':
-    env = BulletEnv(model_path='/Users/xdralex/Work/curiosity/pioneer/pioneer/envs/pioneer/assets/pioneer.urdf', headless=False)
-    env.reset_env()
-
-    print(env.scene)
-
-    env.bullet.resetDebugVisualizerCamera(cameraDistance=env.render_config.camera_distance,
-                                          cameraYaw=env.render_config.camera_yaw,
-                                          cameraPitch=env.render_config.camera_pitch,
-                                          cameraTargetPosition=env.render_config.camera_target)
-
-    target_joint = env.scene.joints_by_name['robot:arm3_to_rotator3']
-    # target_joint.control_velocity(velocity=1.0)
-
-    while True:
-        # rr = target_joint.upper_limit - target_joint.lower_limit
-        # if target_joint.position() < target_joint.lower_limit + 0.01 * rr:
-        #     target_joint.control_velocity(velocity=1.0)
-        #
-        # if target_joint.position() > target_joint.upper_limit - 0.01 * rr:
-        #     target_joint.control_velocity(velocity=-1.0)
-
-        env.world.step()
-        sleep(env.world.timestep)
+    @abstractmethod
+    def observe(self) -> Observation:
+        pass

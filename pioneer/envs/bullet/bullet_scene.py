@@ -177,16 +177,12 @@ class Scene:
 
 
 class World:
-    def __init__(self,
-                 bullet: BulletClient,
-                 frame_skip: int = 5,
-                 timestep: float = 1/240,
-                 gravity_force: float = 0.0):
+    def __init__(self, bullet: BulletClient, timestep: float, frame_skip: int, gravity: float):
         self.bullet = bullet
 
-        self.frame_skip = frame_skip
         self.timestep = timestep
-        self.gravity_force = gravity_force
+        self.frame_skip = frame_skip
+        self.gravity_force = gravity
 
         self.bullet.setGravity(0, 0, -self.gravity_force)
         self.bullet.setTimeStep(timestep)
