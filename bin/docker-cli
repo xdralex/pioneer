@@ -30,12 +30,12 @@ then
   docker run --cap-add SYS_PTRACE --gpus all --shm-size=8192m -i --rm -u apollo -w $WORK $PORT_BINDING \
        -v /dev/urandom:/dev/urandom -v /dev/random:/dev/random \
        -v "/data/assets/.cache:$CACHE" -v "$PWD:$WORK" -v "/data/ssd:/data/ssd" -v "/data/nvme:/data/nvme" "$IMAGE" \
-       python3.7 pioneer/cli.py "${@:1}"
+       python3.7 cli.py "${@:1}"
 else
   docker run --cap-add SYS_PTRACE --gpus all --shm-size=8192m -i --rm -u apollo -w $WORK $PORT_BINDING \
        -v /dev/urandom:/dev/urandom -v /dev/random:/dev/random \
        -v "/data/assets/.cache:$CACHE" -v "$PWD:$WORK" -v "/data/ssd:/data/ssd" -v "/data/nvme:/data/nvme" "$IMAGE" \
-       python3.7 2>"/data/ssd/run/pioneer/logs/main-$now.log" pioneer/cli.py "${@:1}"
+       python3.7 2>"/data/ssd/run/pioneer/logs/main-$now.log" cli.py "${@:1}"
 fi
 
 popd > /dev/null || exit
