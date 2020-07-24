@@ -16,10 +16,10 @@ then
   CONT_TENSORBOARD_PORT=6006
   HOST_TENSORBOARD_PORT=$2
 
-  PORT_BINDING="-p $HOST_TENSORBOARD_PORT:$CONT_TENSORBOARD_PORT -p $HOST_RAY_PORT:$CONT_RAY_PORT"
+  PORT_BINDING="-p $HOST_TENSORBOARD_PORT:$CONT_TENSORBOARD_PORT"
   shift; shift
 else
-  PORT_BINDING="-p $HOST_RAY_PORT:$CONT_RAY_PORT"
+  PORT_BINDING=""
 fi
 
 now=$(date +"%Y-%m-%d_%H:%M:%S")
@@ -30,12 +30,12 @@ if [[ "$1" == "--nolog" ]]
 then
   shift;
 
-  docker run --cap-add SYS_PTRACE --gpus all --shm-size=8192m -i --rm -u apollo -w $WORK $PORT_BINDING \
+  docker run --cap-add SYS_PTRACE --gpus all --shm-size=8192m -i --rm -u apollo -w $WORK -p $HOST_RAY_PORT:$CONT_RAY_PORT $PORT_BINDING \
        -v /dev/urandom:/dev/urandom -v /dev/random:/dev/random \
        -v "/data/assets/.cache:$CACHE" -v "$PWD:$WORK" -v "/data/ssd:/data/ssd" -v "/data/nvme:/data/nvme" "$IMAGE" \
        python3.7 run.py "${@:1}"
 else
-  docker run --cap-add SYS_PTRACE --gpus all --shm-size=8192m -i --rm -u apollo -w $WORK $PORT_BINDING \
+  docker run --cap-add SYS_PTRACE --gpus all --shm-size=8192m -i --rm -u apollo -w $WORK -p $HOST_RAY_PORT:$CONT_RAY_PORT $PORT_BINDING \
        -v /dev/urandom:/dev/urandom -v /dev/random:/dev/random \
        -v "/data/assets/.cache:$CACHE" -v "$PWD:$WORK" -v "/data/ssd:/data/ssd" -v "/data/nvme:/data/nvme" "$IMAGE" \
        python3.7 2>"/data/ssd/run/pioneer/logs/main-$now.log" run.py "${@:1}"

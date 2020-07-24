@@ -14,7 +14,7 @@ def prepare_env():
 
 register_env('Pioneer-v1', lambda _: prepare_env())
 
-ray.init()
+ray.init(webui_host='127.0.0.1')
 
 config = ppo.DEFAULT_CONFIG.copy()
 
