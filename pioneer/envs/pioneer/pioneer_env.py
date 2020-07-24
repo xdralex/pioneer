@@ -34,7 +34,8 @@ class PioneerEnv(BulletEnv[Action, Observation]):
 
         self.config = pioneer_config or PioneerConfig()
 
-        self.action_space = self.joint_velocities_space(self.scene, self.config.velocity_factor)
+        # TODO: self.action_space = self.joint_velocities_space(self.scene, self.config.velocity_factor)
+        self.action_space = self.joint_positions_space(self.scene)
         self.observation_space = self.observation_to_space(self.observe())
         self.reward_range = (-float('inf'), float('inf'))
 
@@ -47,24 +48,43 @@ class PioneerEnv(BulletEnv[Action, Observation]):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
+    # TODO:
+    #
+    # def act(self, action: Action) -> Tuple[float, bool, Dict]:
+    #     pointer_coords = np.array(self.scene.items_by_name['robot:pointer'].pose().xyz)
+    #     target_coords = np.array(self.scene.items_by_name['target'].pose().xyz)
+    #     diff = target_coords - pointer_coords
+    #     distance = np.linalg.norm(diff)
+    #
+    #     reward = 0
+    #     if distance < self.best_distance:
+    #         reward += self.potential(distance) - self.potential(self.best_distance)
+    #         self.best_distance = distance
+    #     reward -= self.config.step_penalty
+    #
+    #     done = distance < self.config.stop_distance
+    #
+    #     action_list = list(action)
+    #     assert len(action_list) == len(self.scene.joints)
+    #     for velocity, joint in zip(action_list, self.scene.joints):
+    #         joint.control_velocity(velocity)
+    #
+    #     self.world.step()
+    #     return reward, done, dict()
+
     def act(self, action: Action) -> Tuple[float, bool, Dict]:
         pointer_coords = np.array(self.scene.items_by_name['robot:pointer'].pose().xyz)
         target_coords = np.array(self.scene.items_by_name['target'].pose().xyz)
         diff = target_coords - pointer_coords
         distance = np.linalg.norm(diff)
 
-        reward = 0
-        if distance < self.best_distance:
-            reward += self.potential(distance) - self.potential(self.best_distance)
-            self.best_distance = distance
-        reward -= self.config.step_penalty
-
+        reward = -distance
         done = distance < self.config.stop_distance
 
         action_list = list(action)
         assert len(action_list) == len(self.scene.joints)
-        for velocity, joint in zip(action_list, self.scene.joints):
-            joint.control_velocity(velocity)
+        for position, joint in zip(action_list, self.scene.joints):
+            joint.control_position(position)
 
         self.world.step()
         return reward, done, dict()
