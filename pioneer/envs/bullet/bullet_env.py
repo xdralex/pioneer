@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Tuple, TypeVar, List, Union, Generic, Optional
+from typing import Dict, Tuple, TypeVar, Union, Generic, Optional
 
 import gym
 import numpy as np
@@ -36,7 +36,7 @@ class RenderConfig:
 @dataclass
 class SimulationConfig:
     timestep: float = 1 / 240
-    frame_skip: int = 5
+    frame_skip: int = 10
 
     gravity: float = 0
 
@@ -59,7 +59,7 @@ class SimulationConfig:
 
     @property
     def frames_per_second(self) -> int:
-        return int(np.round(1 / self.timestep * self.frame_skip))
+        return int(np.round(1 / (self.timestep * self.frame_skip)))
 
 
 class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
