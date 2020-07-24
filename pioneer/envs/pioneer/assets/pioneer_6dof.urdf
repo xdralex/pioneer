@@ -292,7 +292,7 @@
     </joint>
 
     <joint name="robot:effector_to_pointer" type="fixed">
-        <child link="robot:pointer"/>
         <parent link="robot:effector"/>
+        <child link="robot:pointer"/>
     </joint>
 </robot>

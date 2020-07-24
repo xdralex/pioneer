@@ -1,0 +1,28 @@
+#!/bin/bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+DIR=$DIR/..
+
+IMAGE=xdralex/robotics:latest
+
+HOME=/home/apollo
+WORK=$HOME/package
+CACHE=$HOME/.cache
+
+if [[ "$1" == "--tensorboard" ]]
+then
+  CONT_TENSORBOARD_PORT=6006
+  HOST_TENSORBOARD_PORT=$2
+  PORT_BINDING="-p $HOST_TENSORBOARD_PORT:$CONT_TENSORBOARD_PORT"
+  shift; shift
+else
+  PORT_BINDING=""
+fi
+
+pushd "$DIR" > /dev/null || exit
+
+docker run --cap-add SYS_PTRACE --gpus all --shm-size=8192m -i -t --rm -u apollo -w $WORK $PORT_BINDING \
+	     -v "/data/assets/.cache:$CACHE" -v "$PWD:$WORK" -v "/data/ssd:/data/ssd" -v "/data/nvme:/data/nvme" "$IMAGE" \
+	     bash -c "echo \"PROMPT='%B%F{green}%n@%M%f%b %B%~%b %B%F{cyan}%#%f%b '\" >> ~/.zshrc && /usr/bin/zsh"
+
+popd > /dev/null || exit
