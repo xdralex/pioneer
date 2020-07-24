@@ -111,7 +111,7 @@ class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
                 joint_info = JointInfo(*bullet.getJointInfo(body_item.body_id, joint_index))
 
                 joint_item = Item(bullet,
-                                  name=joint_info.link_name,
+                                  name=joint_info.link_name.decode("utf8"),
                                   body_id=body_id,
                                   link_index=joint_index)
 
@@ -186,10 +186,6 @@ class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
         reward, done, info = self.act(action)
         observation = self.observe()
         return observation, reward, done, info
-
-    @abstractmethod
-    def seed(self, seed=None) -> List[int]:
-        pass
 
     @abstractmethod
     def act(self, action: Action) -> Tuple[float, bool, Dict]:

@@ -50,12 +50,12 @@ class Item(object):
     def __repr__(self) -> str:
         return f'Item(name={self.name}, body_id={self.body_id}, link_index={self.link_index})'
 
-    def world_pose(self) -> Pose:
+    def pose(self) -> Pose:
         if self.link_index is None:
             data = BasePositionAndOrientation(*self.bullet.getBasePositionAndOrientation(self.body_id))
             return Pose(self.bullet, data.position, data.orientation)
         else:
-            data = LinkState(*self.bullet.getLinkState(self.body_id, self.link_index))
+            data = LinkState(*self.bullet.getLinkState(self.body_id, self.link_index, computeLinkVelocity=1, computeForwardKinematics=1))
             return Pose(self.bullet, data.link_world_position, data.link_world_orientation)
 
     def velocity(self):
@@ -63,7 +63,7 @@ class Item(object):
             data = BaseVelocity(*self.bullet.getBaseVelocity(self.body_id))
             return Velocity(data.linear_velocity, data.angular_velocity)
         else:
-            data = LinkState(*self.bullet.getLinkState(self.body_id, self.link_index))
+            data = LinkState(*self.bullet.getLinkState(self.body_id, self.link_index, computeLinkVelocity=1, computeForwardKinematics=1))
             return Velocity(data.world_link_linear_velocity, data.world_link_angular_velocity)
 
 
