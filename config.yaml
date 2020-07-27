@@ -1,0 +1,20 @@
+tracking:
+  training_root: /data/ssd/run/pioneer/launches
+
+logging:
+  version: 1
+
+  formatters:
+    console_formatter:
+      format: '%(asctime)s %(levelname)-8s [%(name)s] - %(message)s'
+
+  handlers:
+    console_handler:
+      class: logging.StreamHandler
+      formatter: console_formatter
+      level: INFO
+      stream: ext://sys.stderr
+
+  root:
+    level: INFO
+    handlers: [console_handler]

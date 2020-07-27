@@ -7,6 +7,7 @@ from typing import Optional, Tuple, Dict, List
 import numpy as np
 from gym import spaces
 from gym.utils import seeding
+from gym import utils
 
 from pioneer.envs.bullet import BulletEnv, RenderConfig, SimulationConfig, Scene
 
@@ -22,7 +23,7 @@ class PioneerConfig:
     stop_distance: float = 0.1
 
 
-class PioneerEnv(BulletEnv[Action, Observation]):
+class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
     def __init__(self,
                  headless: bool = True,
                  pioneer_config: Optional[PioneerConfig] = None,
@@ -31,6 +32,7 @@ class PioneerEnv(BulletEnv[Action, Observation]):
 
         model_path = os.path.join(os.path.dirname(__file__), 'assets/pioneer_6dof.urdf')
         BulletEnv.__init__(self, model_path, headless, simulation_config, render_config)
+        utils.EzPickle.__init__(self)
 
         self.config = pioneer_config or PioneerConfig()
 
