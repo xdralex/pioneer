@@ -3,7 +3,7 @@ import math
 import os
 import pathlib
 from logging.config import dictConfig
-from typing import List, Optional
+from typing import List
 
 import pandas as pd
 from tabulate import tabulate

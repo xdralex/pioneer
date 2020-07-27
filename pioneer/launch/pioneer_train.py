@@ -26,13 +26,13 @@ def train(results_dir: str,
                            'env': 'Pioneer-v1',
                            'framework': 'torch',
                            'num_gpus': 0,
-                           'num_workers': 4,
+                           'num_workers': 1,
                            'log_level': 'INFO',
                            'monitor': monitor,
-                           'lr': tune.uniform(1e-5, 1e-4)
+                           'lr': tune.loguniform(1e-5, 1e-4)
                        },
                        stop={
-                           "training_iteration": 5
+                           "training_iteration": 1000
                        },
                        local_dir=results_dir,
                        checkpoint_freq=checkpoint_freq,
@@ -40,3 +40,7 @@ def train(results_dir: str,
 
     ray.shutdown()
     return results.dataframe()
+
+
+if __name__ == '__main__':
+    pass

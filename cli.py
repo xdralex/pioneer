@@ -12,7 +12,7 @@ from pioneer.util import launch_tensorboard, configure_logging, dump
 @click.command(name='pioneer-train')
 @click.option('-e', '--experiment', 'experiment', required=True, type=str, help='experiment name')
 @click.option('-c', '--checkpoint-freq', 'checkpoint_freq', default=10, type=int, help='checkpoint frequency (default: 10)')
-@click.option('-n', '--num-samples', 'num_samples', default=100, type=int, help='number of search samples (default: 100')
+@click.option('-n', '--num-samples', 'num_samples', default=128, type=int, help='number of search samples (default: 100')
 @click.option('--no-monitor', 'no_monitor', is_flag=True, help='disable monitoring')
 def cli_pioneer_train(experiment: str, checkpoint_freq: int, num_samples: int, no_monitor: bool):
     with open('config.yaml', 'r') as config_file:

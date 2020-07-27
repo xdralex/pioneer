@@ -50,46 +50,44 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    # TODO:
-    #
-    # def act(self, action: Action) -> Tuple[float, bool, Dict]:
-    #     pointer_coords = np.array(self.scene.items_by_name['robot:pointer'].pose().xyz)
-    #     target_coords = np.array(self.scene.items_by_name['target'].pose().xyz)
-    #     diff = target_coords - pointer_coords
-    #     distance = np.linalg.norm(diff)
-    #
-    #     reward = 0
-    #     if distance < self.best_distance:
-    #         reward += self.potential(distance) - self.potential(self.best_distance)
-    #         self.best_distance = distance
-    #     reward -= self.config.step_penalty
-    #
-    #     done = distance < self.config.stop_distance
-    #
-    #     action_list = list(action)
-    #     assert len(action_list) == len(self.scene.joints)
-    #     for velocity, joint in zip(action_list, self.scene.joints):
-    #         joint.control_velocity(velocity)
-    #
-    #     self.world.step()
-    #     return reward, done, dict()
-
     def act(self, action: Action) -> Tuple[float, bool, Dict]:
         pointer_coords = np.array(self.scene.items_by_name['robot:pointer'].pose().xyz)
         target_coords = np.array(self.scene.items_by_name['target'].pose().xyz)
         diff = target_coords - pointer_coords
         distance = np.linalg.norm(diff)
 
-        reward = -distance
+        reward = 0
+        if distance < self.best_distance:
+            reward += self.potential(distance) - self.potential(self.best_distance)
+            self.best_distance = distance
+        reward -= self.config.step_penalty
+
         done = distance < self.config.stop_distance
 
         action_list = list(action)
         assert len(action_list) == len(self.scene.joints)
-        for position, joint in zip(action_list, self.scene.joints):
-            joint.control_position(position)
+        for velocity, joint in zip(action_list, self.scene.joints):
+            joint.control_velocity(velocity)
 
         self.world.step()
         return reward, done, dict()
+
+    # def act(self, action: Action) -> Tuple[float, bool, Dict]:
+    #     pointer_coords = np.array(self.scene.items_by_name['robot:pointer'].pose().xyz)
+    #     target_coords = np.array(self.scene.items_by_name['target'].pose().xyz)
+    #     diff = target_coords - pointer_coords
+    #     distance = np.linalg.norm(diff)
+    #
+    #     reward = -distance
+    #     done = distance < self.config.stop_distance
+    #
+    #     action_list = list(action)
+    #     assert len(action_list) == len(self.scene.joints)
+    #     for position, joint in zip(action_list, self.scene.joints):
+    #         joint.control_position(position)
+    #
+    #     self.world.step()
+    #     return reward, done, dict()
 
     def observe(self) -> Observation:
         pointer_coords = np.array(self.scene.items_by_name['robot:pointer'].pose().xyz)
