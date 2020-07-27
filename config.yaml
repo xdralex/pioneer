@@ -18,3 +18,7 @@ logging:
   root:
     level: INFO
     handlers: [console_handler]
+
+  loggers:
+    werkzeug:
+      level: ERROR
