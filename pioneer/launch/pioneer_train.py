@@ -10,6 +10,7 @@ from pioneer.envs.pioneer import PioneerEnv
 def train(results_dir: str,
           checkpoint_freq: int,
           num_samples: int,
+          num_workers: int,
           monitor: bool) -> pd.DataFrame:
 
     def prepare_env():
@@ -26,10 +27,13 @@ def train(results_dir: str,
                            'env': 'Pioneer-v1',
                            'framework': 'torch',
                            'num_gpus': 0,
-                           'num_workers': 1,
+                           'num_workers': num_workers,
                            'log_level': 'INFO',
                            'monitor': monitor,
-                           'lr': tune.loguniform(1e-5, 1e-4)
+                           'model': {
+                               'fcnet_hiddens': [256, 128, 256]
+                           },
+                           'lr': 1e-5  # tune.loguniform(1e-6, 1e-4)
                        },
                        stop={
                            "training_iteration": 1000
@@ -43,4 +47,8 @@ def train(results_dir: str,
 
 
 if __name__ == '__main__':
-    pass
+    train(results_dir='~/ray_results',
+          checkpoint_freq=10,
+          num_samples=1,
+          num_workers=1,
+          monitor=True)

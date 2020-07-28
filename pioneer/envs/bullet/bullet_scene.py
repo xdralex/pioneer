@@ -148,6 +148,16 @@ class Joint(object):
 
         self.bullet.setJointMotorControl2(**kwargs)
 
+    def reset_state(self, position: float, velocity: Optional[float] = None):
+        kwargs = {
+            'bodyUniqueId': self.body_id,
+            'jointIndex': self.joint_index,
+            'targetValue': position
+        }
+        set_optional_kv(kwargs, 'targetVelocity', velocity)
+
+        self.bullet.resetJointState(**kwargs)
+
 
 class Scene:
     def __init__(self):
@@ -190,3 +200,7 @@ class World:
     def step(self):
         for _ in range(self.frame_skip):
             self.bullet.stepSimulation()
+
+    @property
+    def step_time(self) -> float:
+        return self.timestep * self.frame_skip

@@ -19,7 +19,7 @@ Observation = TypeVar('Observation')
 class RenderConfig:
     camera_target: Tuple[float, float, float] = (0, 0, 0)
 
-    camera_distance: float = 35.0
+    camera_distance: float = 40.0
 
     camera_yaw: float = 120.0
     camera_pitch: float = -30.0
@@ -28,7 +28,7 @@ class RenderConfig:
     render_width: int = 1280
     render_height: int = 800
 
-    projection_fov: float = 60
+    projection_fov: float = 90
     projection_near: float = 0.1
     projection_far: float = 100.0
 
@@ -82,6 +82,9 @@ class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
         self.world: Optional[World] = None
         self.scene: Optional[Scene] = None
 
+        self.world_index = -1
+        self.step_index = 0
+
         self.reset_world()
 
     def reset_world(self):
@@ -91,6 +94,9 @@ class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
                            frame_skip=self.simulation_config.frame_skip,
                            gravity=self.simulation_config.gravity)
         self.scene = self.load_scene(self.bullet, self.model_path, self.simulation_config)
+
+        self.world_index += 1
+        self.step_index = 0
 
     @staticmethod
     def load_scene(bullet: BulletClient, model_path: str, simulation_config: SimulationConfig) -> Scene:
@@ -180,15 +186,22 @@ class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
 
     def reset(self) -> Observation:
         self.reset_world()
+        self.reinit()
         return self.observe()
 
     def step(self, action: Action) -> Tuple[Observation, float, bool, Dict]:
-        reward, done, info = self.act(action)
+        self.step_index += 1
+
+        reward, done, info = self.act(action, self.world_index, self.step_index)
         observation = self.observe()
         return observation, reward, done, info
 
     @abstractmethod
-    def act(self, action: Action) -> Tuple[float, bool, Dict]:
+    def reinit(self):
+        pass
+
+    @abstractmethod
+    def act(self, action: Action, world_index: int, step_index: int) -> Tuple[float, bool, Dict]:
         pass
 
     @abstractmethod
