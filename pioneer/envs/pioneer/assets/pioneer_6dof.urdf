@@ -193,7 +193,7 @@
 
     <link name="robot:pointer">
         <visual>
-            <origin rpy="0 0 0" xyz="3.6 0 1.9"/>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
             <geometry>
                 <sphere radius="0.2"/>
             </geometry>
@@ -207,7 +207,7 @@
 
     <link name="target">
         <visual>
-            <origin rpy="0 0 0" xyz="20 0 5"/>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
             <geometry>
                 <sphere radius="0.2"/>
             </geometry>
@@ -227,6 +227,7 @@
     <joint name="world_to_target" type="fixed">
         <parent link="world"/>
         <child link="target"/>
+        <origin xyz="20 -5 4"/>
     </joint>
 
     <joint name="robot:base_to_rotator1" type="revolute">
@@ -294,5 +295,6 @@
     <joint name="robot:effector_to_pointer" type="fixed">
         <parent link="robot:effector"/>
         <child link="robot:pointer"/>
+        <origin xyz="3.6 0 1.9"/>
     </joint>
 </robot>
