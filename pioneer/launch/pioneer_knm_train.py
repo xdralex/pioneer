@@ -4,7 +4,7 @@ from ray import tune
 from ray.tune.registry import register_env
 import pandas as pd
 
-from pioneer.envs.pioneer import PioneerEnv
+from pioneer.envs.pioneer import PioneerKinematicEnv
 
 
 def train(results_dir: str,
@@ -14,7 +14,7 @@ def train(results_dir: str,
           monitor: bool) -> pd.DataFrame:
 
     def prepare_env():
-        pioneer_env = PioneerEnv()
+        pioneer_env = PioneerKinematicEnv()
         return TimeLimit(pioneer_env, max_episode_steps=250)
 
     register_env('Pioneer-v1', lambda _: prepare_env())

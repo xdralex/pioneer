@@ -1,1 +1,1 @@
-from .pioneer_env import PioneerEnv, PioneerConfig
+from .pioneer_knm_env import PioneerKinematicEnv, PioneerKinematicConfig
