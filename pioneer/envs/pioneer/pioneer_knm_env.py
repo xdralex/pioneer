@@ -23,13 +23,13 @@ class PioneerKinematicConfig:
 
     done_distance: float = 0.1
 
-    potential_k: float = 100.0
-    potential_s: float = 25.0
-    step_penalty: float = 1 / 125
-    done_reward: float = 100.0
+    award_max: float = 100.0
+    award_done: float = 0.0
+    award_potential_slope: float = 10.0
+    penalty_step: float = 1 / 125
 
-    target_lo: Tuple[float, float, float] = (10, -8, 1)
-    target_hi: Tuple[float, float, float] = (25, 8, 7)
+    target_lo: Tuple[float, float, float] = (10, -4, 2)
+    target_hi: Tuple[float, float, float] = (20, 4, 6)
     target_radius: float = 0.2
     target_rgba: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.5)
 
@@ -160,8 +160,8 @@ class PioneerKinematicEnv(BulletEnv[Action, Observation], utils.EzPickle):
         done = distance < self.config.done_distance
 
         reward_potential = self.potential - old_potential
-        reward_step = -self.config.step_penalty
-        reward_done = self.config.done_reward if done else 0
+        reward_step = -self.config.penalty_step
+        reward_done = self.config.award_done if done else 0
         reward = reward_potential + reward_step + reward_done
 
         info = {
@@ -232,10 +232,10 @@ class PioneerKinematicEnv(BulletEnv[Action, Observation], utils.EzPickle):
             joint.reset_state(position)
 
     def compute_potential(self, distance: float) -> float:
-        k = self.config.potential_k
-        s = self.config.potential_s
+        m = self.config.award_max - self.config.award_done      # max potential (achieved when the distance is 0)
+        s = self.config.award_potential_slope                   # slope of the potential curve
 
-        return k / (distance / s + 1)
+        return m / (distance / s + 1)
 
     @staticmethod
     def observation_to_space(observation: Observation) -> spaces.Space:

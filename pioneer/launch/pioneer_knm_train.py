@@ -1,9 +1,12 @@
+from typing import Any, Dict
+
 import ray
 from gym.wrappers import TimeLimit
 from ray import tune
 from ray.tune.registry import register_env
 import pandas as pd
 
+from envs.pioneer import PioneerKinematicConfig
 from pioneer.envs.pioneer import PioneerKinematicEnv
 
 
@@ -13,12 +16,15 @@ def train(results_dir: str,
           num_workers: int,
           monitor: bool) -> pd.DataFrame:
 
-    def prepare_env():
-        pioneer_env = PioneerKinematicEnv()
+    def prepare_env(env_config: Dict[str, Any]):
+        pioneer_config = PioneerKinematicConfig(
+            award_potential_slope=float(env_config['award_potential_slope']),
+            penalty_step=float(env_config['penalty_step']),
+        )
+        pioneer_env = PioneerKinematicEnv(pioneer_config)
         return TimeLimit(pioneer_env, max_episode_steps=250)
 
-    register_env('Pioneer-v1', lambda _: prepare_env())
-
+    register_env('Pioneer-v1', prepare_env)
     ray.init(webui_host='0.0.0.0')
 
     results = tune.run('PPO',
@@ -30,6 +36,11 @@ def train(results_dir: str,
                            'num_workers': num_workers,
                            'log_level': 'INFO',
                            'monitor': monitor,
+
+                           'env_config': {
+                               'award_potential_slope': tune.loguniform(5, 50),
+                               'penalty_step': tune.loguniform(1 / 250, 1 / 2.5)
+                           },
 
                            'model': {
                                'fcnet_hiddens': [256, 256]
