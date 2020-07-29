@@ -6,7 +6,7 @@ from ray import tune
 from ray.tune.registry import register_env
 import pandas as pd
 
-from envs.pioneer import PioneerKinematicConfig
+from pioneer.envs.pioneer import PioneerKinematicConfig
 from pioneer.envs.pioneer import PioneerKinematicEnv
 
 
