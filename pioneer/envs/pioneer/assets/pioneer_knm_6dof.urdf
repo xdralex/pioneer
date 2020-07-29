@@ -17,11 +17,7 @@
     </material>
 
     <material name="pointer_mat">
-        <color rgba="1 0 0 1"/>
-    </material>
-
-    <material name="target_mat">
-        <color rgba="0.1 0.9 0.1 0.5"/>
+        <color rgba="0.1 0.9 0.1 1"/>
     </material>
 
     <material name="obstacle_mat">
@@ -205,29 +201,9 @@
         </inertial>
     </link>
 
-    <link name="target">
-        <visual>
-            <origin rpy="0 0 0" xyz="0 0 0"/>
-            <geometry>
-                <sphere radius="0.2"/>
-            </geometry>
-            <material name="target_mat"/>
-        </visual>
-        <inertial>
-            <mass value="1.0"/>
-            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
-        </inertial>
-    </link>
-
     <joint name="world_to_base" type="fixed">
         <parent link="world"/>
         <child link="robot:base"/>
-    </joint>
-
-    <joint name="world_to_target" type="fixed">
-        <parent link="world"/>
-        <child link="target"/>
-        <origin xyz="20 -5 4"/>
     </joint>
 
     <joint name="robot:base_to_rotator1" type="revolute">

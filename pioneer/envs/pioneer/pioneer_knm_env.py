@@ -9,8 +9,8 @@ from gym import utils
 from gym.utils import seeding
 from numpy.random.mtrand import RandomState
 
-from pioneer.collections_util import arr2str, dict2str
-from pioneer.envs.bullet import BulletEnv, RenderConfig, SimulationConfig, Scene
+from pioneer.collections_util import arr2str
+from pioneer.envs.bullet import BulletEnv, RenderConfig, SimulationConfig
 
 Action = np.ndarray
 Observation = np.ndarray
@@ -28,13 +28,23 @@ class PioneerKinematicConfig:
     step_penalty: float = 1 / 125
     done_reward: float = 100.0
 
+    target_lo: Tuple[float, float, float] = (10, -8, 1)
+    target_hi: Tuple[float, float, float] = (25, 8, 7)
+    target_radius: float = 0.2
+    target_rgba: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.5)
 
+
+# TODO: inheritance is hard – separation between this and BulletEnv should be much cleaner
 class PioneerKinematicEnv(BulletEnv[Action, Observation], utils.EzPickle):
     def __init__(self,
                  headless: bool = True,
                  pioneer_config: Optional[PioneerKinematicConfig] = None,
                  simulation_config: Optional[SimulationConfig] = None,
                  render_config: Optional[RenderConfig] = None):
+        # randomness
+        self.np_random: Optional[RandomState] = None
+        self.seed()
+
         # initialization
         model_path = os.path.join(os.path.dirname(__file__), 'assets/pioneer_knm_6dof.urdf')
         BulletEnv.__init__(self, model_path, headless, simulation_config, render_config)
@@ -50,22 +60,49 @@ class PioneerKinematicEnv(BulletEnv[Action, Observation], utils.EzPickle):
         self.dt = self.world.step_time                                      # time passing between consecutive steps
         self.eps = 1e-5                                                     # numerical stability factor
 
-        self.a = np.zeros(self.dof, dtype=np.float32)                       # acceleration set on the previous step
-        self.v = np.zeros(self.dof, dtype=np.float32)                       # velocity reached at the end of the previous step
-        self.r = self.joint_positions()                                     # position reached at the end of the previous step
-        self.potential: float = 0                                           # potential reached at the end of the previous step
+        self.a: Optional[np.ndarray] = None                                 # acceleration set on the previous step
+        self.v: Optional[np.ndarray] = None                                 # velocity reached at the end of the previous step
+        self.r: Optional[np.ndarray] = None                                 # position reached at the end of the previous step
+        self.potential: Optional[float] = None                              # potential reached at the end of the previous step
+
+        # final touches
+        self.reset_world()
 
         # spaces
         self.action_space = spaces.Box(-self.a_max, self.a_max, dtype=np.float32)
         self.observation_space = self.observation_to_space(self.observe())
         self.reward_range = (-float('inf'), float('inf'))
 
-        # randomness
-        self.np_random: Optional[RandomState] = None
-        self.seed()
+    def reset_world(self,
+                    joint_positions: Optional[np.ndarray] = None,
+                    target_position: Optional[Tuple[float, float, float]] = None):
 
-    def reinit(self):
-        self.reinit_state()
+        if joint_positions is None:
+            joint_positions = self.np_random.uniform(self.r_lo, self.r_hi)
+
+        if target_position is None:
+            assert len(self.config.target_lo) == 3
+            assert len(self.config.target_hi) == 3
+
+            target_lo = np.array(self.config.target_lo)
+            target_hi = np.array(self.config.target_hi)
+
+            target_position = tuple(self.np_random.uniform(target_lo, target_hi))
+
+        self.a = np.zeros(self.dof, dtype=np.float32)
+        self.v = np.zeros(self.dof, dtype=np.float32)
+        self.r = joint_positions
+
+        self.reset_joint_positions(self.r)
+        self.scene.create_body_sphere('target',
+                                      collision=False,
+                                      mass=0.0,
+                                      radius=self.config.target_radius,
+                                      position=target_position,
+                                      orientation=self.scene.rpy2quat((0, 0, 0)),
+                                      rgba_color=self.config.target_rgba)
+
+        self.potential = 0
 
     def seed(self, seed=None) -> List[int]:
         self.np_random, seed = seeding.np_random(seed)
@@ -81,9 +118,9 @@ class PioneerKinematicEnv(BulletEnv[Action, Observation], utils.EzPickle):
         r1 = np.zeros(self.dof, dtype=np.float32)
 
         for i in range(self.dof):
-            v1[i] = v0[i] + a0[i] * self.dt     # velocity reached at the end of step
-            dt_p1 = self.dt                     # acceleration phase time
-            dt_p2 = 0                           # uniform motion phase time
+            v1[i] = v0[i] + a0[i] * self.dt  # velocity reached at the end of step
+            dt_p1 = self.dt  # acceleration phase time
+            dt_p2 = 0  # uniform motion phase time
 
             if v1[i] > self.v_max[i]:
                 dt_p1 = np.clip((self.v_max[i] - v0[i]) / (a0[i] + self.eps), 0, self.dt)
@@ -175,18 +212,6 @@ class PioneerKinematicEnv(BulletEnv[Action, Observation], utils.EzPickle):
             np.array([self.potential])
         ])
 
-    def reinit_state(self, positions: Optional[np.ndarray] = None):
-        if positions is None:
-            positions = self.np_random.uniform(self.r_lo, self.r_hi)
-
-        self.a = np.zeros(self.dof, dtype=np.float32)
-        self.v = np.zeros(self.dof, dtype=np.float32)
-        self.r = positions
-
-        self.reset_joint_positions(self.r)
-
-        self.potential = 0
-
     @property
     def dof(self) -> int:
         return len(self.scene.joints)
@@ -223,10 +248,19 @@ if __name__ == '__main__':
     env = PioneerKinematicEnv(headless=False)
     env.reset_gui_camera()
 
-    sphere = env.bullet.createVisualShape(env.bullet.GEOM_SPHERE, radius=0.2, rgbaColor=[0.1, 0.9, 0.1, 0.5])
-    env.bullet.createMultiBody(baseMass=0.0, baseVisualShapeIndex=sphere, basePosition=[15, 3, 2])
+    # env.scene.create_body_sphere('test',
+    #                              collision=False,
+    #                              mass=0.0,
+    #                              radius=0.2,
+    #                              position=(15.0, 3.0, 2.0),
+    #                              orientation=env.scene.rpy2quat((0, 0, 0)),
+    #                              rgba_color=(0.1, 0.9, 0.1, 0.5))
+    #
+    # env.scene.items_by_name['test'].reset_pose((30.0, 3.0, 2.0), env.scene.rpy2quat((0, 0, 0)))
 
     # target_joint = env.scene.joints_by_name['robot:arm3_to_rotator3']
+
+    count = 0
     while True:
         # rr = target_joint.upper_limit - target_joint.lower_limit
         # if target_joint.position() < target_joint.lower_limit + 0.01 * rr:

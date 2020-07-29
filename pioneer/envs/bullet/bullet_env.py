@@ -85,9 +85,9 @@ class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
         self.world_index = -1
         self.step_index = 0
 
-        self.reset_world()
+        self.reset_simulator()
 
-    def reset_world(self):
+    def reset_simulator(self):
         self.bullet = bullet_client.BulletClient(connection_mode=pybullet.DIRECT if self.headless else pybullet.GUI)
         self.world = World(bullet=self.bullet,
                            timestep=self.simulation_config.timestep,
@@ -100,7 +100,7 @@ class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
 
     @staticmethod
     def load_scene(bullet: BulletClient, model_path: str, simulation_config: SimulationConfig) -> Scene:
-        scene = Scene()
+        scene = Scene(bullet)
 
         object_ids = [bullet.loadURDF(model_path, flags=simulation_config.model_load_flags)]
 
@@ -185,8 +185,8 @@ class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
             raise AssertionError(f'Render mode "{mode}" is not supported')
 
     def reset(self) -> Observation:
+        self.reset_simulator()
         self.reset_world()
-        self.reinit()
         return self.observe()
 
     def step(self, action: Action) -> Tuple[Observation, float, bool, Dict]:
@@ -197,7 +197,7 @@ class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
         return observation, reward, done, info
 
     @abstractmethod
-    def reinit(self):
+    def reset_world(self):
         pass
 
     @abstractmethod
