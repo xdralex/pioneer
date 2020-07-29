@@ -1,1 +1,1 @@
-#### Pioneer robot training with RL and conv nets
+#### Pioneer robot training with RLLib, PyBullet and OpenAI Gym
