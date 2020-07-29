@@ -223,6 +223,9 @@ if __name__ == '__main__':
     env = PioneerKinematicEnv(headless=False)
     env.reset_gui_camera()
 
+    sphere = env.bullet.createVisualShape(env.bullet.GEOM_SPHERE, radius=0.2, rgbaColor=[0.1, 0.9, 0.1, 0.5])
+    env.bullet.createMultiBody(baseMass=0.0, baseVisualShapeIndex=sphere, basePosition=[15, 3, 2])
+
     # target_joint = env.scene.joints_by_name['robot:arm3_to_rotator3']
     while True:
         # rr = target_joint.upper_limit - target_joint.lower_limit

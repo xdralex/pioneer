@@ -34,8 +34,10 @@ def train(results_dir: str,
                            'model': {
                                'fcnet_hiddens': [256, 256]
                            },
-                           'lr': tune.loguniform(1e-6, 1e-4),
-                           'num_sgd_iter': tune.choice([3, 5, 10, 20, 30])
+                           'train_batch_size': 8000,
+                           'lr': tune.loguniform(1e-5, 1e-4),
+                           'num_sgd_iter': tune.choice([10, 20, 30]),
+                           'observation_filter': 'ConcurrentMeanStdFilter'
                        },
                        stop={
                            "training_iteration": 1000
@@ -52,5 +54,5 @@ if __name__ == '__main__':
     train(results_dir='~/ray_results',
           checkpoint_freq=10,
           num_samples=1,
-          num_workers=1,
+          num_workers=4,
           monitor=True)
