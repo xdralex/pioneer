@@ -30,10 +30,12 @@ def train(results_dir: str,
                            'num_workers': num_workers,
                            'log_level': 'INFO',
                            'monitor': monitor,
+
                            'model': {
-                               'fcnet_hiddens': [256, 128, 256]
+                               'fcnet_hiddens': [256, 256]
                            },
-                           'lr': 1e-5  # tune.loguniform(1e-6, 1e-4)
+                           'lr': tune.loguniform(1e-6, 1e-4),
+                           'num_sgd_iter': tune.choice([3, 5, 10, 20, 30])
                        },
                        stop={
                            "training_iteration": 1000
