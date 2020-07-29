@@ -21,7 +21,7 @@ def train(results_dir: str,
             award_potential_slope=float(env_config['award_potential_slope']),
             penalty_step=float(env_config['penalty_step']),
         )
-        pioneer_env = PioneerKinematicEnv(pioneer_config)
+        pioneer_env = PioneerKinematicEnv(pioneer_config=pioneer_config)
         return TimeLimit(pioneer_env, max_episode_steps=250)
 
     register_env('Pioneer-v1', prepare_env)
