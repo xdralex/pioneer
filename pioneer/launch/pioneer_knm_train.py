@@ -19,10 +19,11 @@ def train(results_dir: str,
     def prepare_env(env_config: Dict[str, Any]):
         pioneer_config = PioneerKinematicConfig(
             award_potential_slope=float(env_config['award_potential_slope']),
+            award_done=float(env_config['award_done']),
             penalty_step=float(env_config['penalty_step']),
         )
         pioneer_env = PioneerKinematicEnv(pioneer_config=pioneer_config)
-        return TimeLimit(pioneer_env, max_episode_steps=250)
+        return TimeLimit(pioneer_env, max_episode_steps=500)
 
     register_env('Pioneer-v1', prepare_env)
     ray.init(webui_host='0.0.0.0')
@@ -38,16 +39,18 @@ def train(results_dir: str,
                            'monitor': monitor,
 
                            'env_config': {
-                               'award_potential_slope': tune.loguniform(5, 50),
-                               'penalty_step': tune.loguniform(1 / 250, 1 / 2.5)
+                               'award_potential_slope': 10.0,
+                               'award_done': 5.0,
+                               'penalty_step': 1 / 100
                            },
 
                            'model': {
                                'fcnet_hiddens': [256, 256]
                            },
                            'train_batch_size': 8000,
-                           'lr': tune.loguniform(1e-5, 1e-4),
-                           'num_sgd_iter': tune.choice([10, 20, 30]),
+                           'entropy_coeff': 0,
+                           'lr': 2e-5,
+                           'num_sgd_iter': 20,
                            'observation_filter': 'ConcurrentMeanStdFilter'
                        },
                        stop={

@@ -24,11 +24,11 @@ class PioneerKinematicConfig:
     done_distance: float = 0.1
 
     award_max: float = 100.0
-    award_done: float = 0.0
+    award_done: float = 5.0
     award_potential_slope: float = 10.0
-    penalty_step: float = 1 / 125
+    penalty_step: float = 1 / 100
 
-    target_lo: Tuple[float, float, float] = (10, -4, 2)
+    target_lo: Tuple[float, float, float] = (15, -4, 2)
     target_hi: Tuple[float, float, float] = (20, 4, 6)
     target_radius: float = 0.2
     target_rgba: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.5)
