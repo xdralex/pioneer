@@ -5,7 +5,7 @@ import yaml
 
 import click
 
-from pioneer.launch.pioneer_knm_train import train as knm_train
+from pioneer.launch.pioneer_train import train as knm_train
 from pioneer.util import launch_tensorboard, configure_logging, dump
 
 

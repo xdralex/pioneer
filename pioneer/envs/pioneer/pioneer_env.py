@@ -17,7 +17,7 @@ Observation = np.ndarray
 
 
 @dataclass
-class PioneerKinematicConfig:
+class PioneerConfig:
     max_v_to_r: float = 2       # seconds^-1
     max_a_to_v: float = 10      # seconds^-1
 
@@ -35,10 +35,10 @@ class PioneerKinematicConfig:
 
 
 # TODO: inheritance is hard – separation between this and BulletEnv should be much cleaner
-class PioneerKinematicEnv(BulletEnv[Action, Observation], utils.EzPickle):
+class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
     def __init__(self,
                  headless: bool = True,
-                 pioneer_config: Optional[PioneerKinematicConfig] = None,
+                 pioneer_config: Optional[PioneerConfig] = None,
                  simulation_config: Optional[SimulationConfig] = None,
                  render_config: Optional[RenderConfig] = None):
         # randomness
@@ -46,11 +46,11 @@ class PioneerKinematicEnv(BulletEnv[Action, Observation], utils.EzPickle):
         self.seed()
 
         # initialization
-        model_path = os.path.join(os.path.dirname(__file__), 'assets/pioneer_knm_6dof.urdf')
+        model_path = os.path.join(os.path.dirname(__file__), 'assets/pioneer_6dof.urdf')
         BulletEnv.__init__(self, model_path, headless, simulation_config, render_config)
         utils.EzPickle.__init__(self)
 
-        self.config = pioneer_config or PioneerKinematicConfig()
+        self.config = pioneer_config or PioneerConfig()
 
         # kinematics & environment
         self.r_lo, self.r_hi = self.joint_limits()                          # position limits [r_lo, r_hi]
@@ -243,7 +243,7 @@ class PioneerKinematicEnv(BulletEnv[Action, Observation], utils.EzPickle):
 
 
 if __name__ == '__main__':
-    env = PioneerKinematicEnv(headless=False, render_config=RenderConfig(camera_distance=40))
+    env = PioneerEnv(headless=False, render_config=RenderConfig(camera_distance=40))
     env.reset_gui_camera()
 
     env.scene.create_body_box(name='obstacle:1',

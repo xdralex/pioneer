@@ -40,7 +40,7 @@ class SimulationConfig:
 
     gravity: float = 0
 
-    self_collision: bool = False
+    self_collision: bool = True
     collision_parent: bool = True
 
     @property

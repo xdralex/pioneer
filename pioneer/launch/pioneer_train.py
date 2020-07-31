@@ -7,8 +7,8 @@ from ray.tune.registry import register_env
 import pandas as pd
 import numpy as np
 
-from pioneer.envs.pioneer import PioneerKinematicConfig
-from pioneer.envs.pioneer import PioneerKinematicEnv
+from pioneer.envs.pioneer import PioneerConfig
+from pioneer.envs.pioneer import PioneerEnv
 
 
 def train(results_dir: str,
@@ -18,12 +18,12 @@ def train(results_dir: str,
           monitor: bool) -> pd.DataFrame:
 
     def prepare_env(env_config: Dict[str, Any]):
-        pioneer_config = PioneerKinematicConfig(
+        pioneer_config = PioneerConfig(
             award_potential_slope=float(env_config['award_potential_slope']),
             award_done=float(env_config['award_done']),
             penalty_step=float(env_config['penalty_step']),
         )
-        pioneer_env = PioneerKinematicEnv(pioneer_config=pioneer_config)
+        pioneer_env = PioneerEnv(pioneer_config=pioneer_config)
         return TimeLimit(pioneer_env, max_episode_steps=500)
 
     register_env('Pioneer-v1', prepare_env)
