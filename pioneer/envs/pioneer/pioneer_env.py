@@ -301,30 +301,8 @@ if __name__ == '__main__':
     env = PioneerEnv(headless=False, render_config=RenderConfig(camera_distance=40))
     env.reset_gui_camera()
 
-    # env.scene.create_body_box(name='obstacle:1',
-    #                           collision=True,
-    #                           mass=0.0,
-    #                           half_extents=(0.5, 0.5, 5.0),
-    #                           position=(10, 5, 0),
-    #                           orientation=env.scene.rpy2quat((0, 0, 0)),
-    #                           rgba_color=(0, 0, 0, 1))
-
-    # env.scene.create_body_sphere(name='test',
-    #                              collision=False,
-    #                              mass=0.0,
-    #                              radius=0.2,
-    #                              position=(15.0, 3.0, 2.0),
-    #                              orientation=env.scene.rpy2quat((0, 0, 0)),
-    #                              rgba_color=(0.1, 0.9, 0.1, 0.5))
-    #
-    # env.scene.items_by_name['test'].reset_pose((30.0, 3.0, 2.0), env.scene.rpy2quat((0, 0, 0)))
-
-    # env.world.step()
     # print(env.contacts())
     # print(env.unwanted_collisions_present())
-    # print(env.scene.pull_contacting_items())
-
-    # print([ContactPoint(*x) for x in env.bullet.getContactPoints()])
 
     target_joint = env.scene.joints_by_name['robot:hinge1_to_arm1']
     # target_joint.control_velocity(velocity=1.0)
