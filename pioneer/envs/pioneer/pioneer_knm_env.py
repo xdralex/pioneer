@@ -118,9 +118,9 @@ class PioneerKinematicEnv(BulletEnv[Action, Observation], utils.EzPickle):
         r1 = np.zeros(self.dof, dtype=np.float32)
 
         for i in range(self.dof):
-            v1[i] = v0[i] + a0[i] * self.dt  # velocity reached at the end of step
-            dt_p1 = self.dt  # acceleration phase time
-            dt_p2 = 0  # uniform motion phase time
+            v1[i] = v0[i] + a0[i] * self.dt     # velocity reached at the end of step
+            dt_p1 = self.dt                     # acceleration phase time
+            dt_p2 = 0                           # uniform motion phase time
 
             if v1[i] > self.v_max[i]:
                 dt_p1 = np.clip((self.v_max[i] - v0[i]) / (a0[i] + self.eps), 0, self.dt)
@@ -177,8 +177,6 @@ class PioneerKinematicEnv(BulletEnv[Action, Observation], utils.EzPickle):
             'v': arr2str(self.v),
             'r': arr2str(self.r)
         }
-
-        # print(f'#{world_index}/#{step_index} - {dict2str(info, delim="  ")}')
 
         self.world.step()
         return reward, done, info
@@ -245,10 +243,24 @@ class PioneerKinematicEnv(BulletEnv[Action, Observation], utils.EzPickle):
 
 
 if __name__ == '__main__':
-    env = PioneerKinematicEnv(headless=False)
+    env = PioneerKinematicEnv(headless=False, render_config=RenderConfig(camera_distance=40))
     env.reset_gui_camera()
 
-    # env.scene.create_body_sphere('test',
+    env.scene.create_body_box(name='obstacle:1',
+                              collision=True,
+                              mass=0.0,
+                              half_extents=(0.5, 0.5, 5.0),
+                              position=(10, 5, 0),
+                              orientation=env.scene.rpy2quat((0, 0, 0)),
+                              rgba_color=(0, 0, 0, 1))
+
+    env.scene.create_body_plane(name='ground',
+                                mass=0.0,
+                                normal=(0, 0, 1.0),
+                                position=(0, 0, 0),
+                                orientation=env.scene.rpy2quat((0, 0, 0)))
+
+    # env.scene.create_body_sphere(name='test',
     #                              collision=False,
     #                              mass=0.0,
     #                              radius=0.2,
@@ -258,16 +270,25 @@ if __name__ == '__main__':
     #
     # env.scene.items_by_name['test'].reset_pose((30.0, 3.0, 2.0), env.scene.rpy2quat((0, 0, 0)))
 
-    # target_joint = env.scene.joints_by_name['robot:arm3_to_rotator3']
+    target_joint = env.scene.joints_by_name['robot:hinge1_to_arm1']
+    # target_joint.control_velocity(velocity=1.0)
+    velocity = 1.0
 
     count = 0
     while True:
-        # rr = target_joint.upper_limit - target_joint.lower_limit
-        # if target_joint.position() < target_joint.lower_limit + 0.01 * rr:
-        #     target_joint.control_velocity(velocity=1.0)
-        #
-        # if target_joint.position() > target_joint.upper_limit - 0.01 * rr:
-        #     target_joint.control_velocity(velocity=-1.0)
+        target_joint.reset_state(target_joint.position(), velocity=velocity)
+
+        # print(f'{target_joint.position()} - {target_joint.lower_limit}..{target_joint.upper_limit}')
+
+        rr = target_joint.upper_limit - target_joint.lower_limit
+        if target_joint.position() < target_joint.lower_limit + 0.01 * rr:
+            # target_joint.control_velocity(velocity=1.0)
+            velocity = 1.0
+
+        if target_joint.position() > target_joint.upper_limit - 0.01 * rr:
+            # target_joint.control_velocity(velocity=-1.0)
+            velocity = -1.0
+
         # target_joint.control_velocity(velocity=10.0, max_force=1000)
         # target_joint.control_position(pos, position_gain=0.1, velocity_gain=0.1, max_force=0)
 

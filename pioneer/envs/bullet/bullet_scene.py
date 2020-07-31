@@ -201,16 +201,50 @@ class Scene:
         visual_id = self.bullet.createVisualShape(self.bullet.GEOM_SPHERE, radius=radius, rgbaColor=rgba_color)
         collision_id = self.bullet.createCollisionShape(self.bullet.GEOM_SPHERE, radius=radius) if collision else None
 
+        self.create_body(name, visual_id, collision_id, mass, position, orientation)
+
+    def create_body_box(self,
+                        name: Optional[str],
+                        collision: bool,
+                        mass: float,
+                        half_extents: Tuple[float, float, float],
+                        position: Tuple[float, float, float],
+                        orientation: Tuple[float, float, float, float],
+                        rgba_color: Tuple[float, float, float, float]):
+
+        visual_id = self.bullet.createVisualShape(self.bullet.GEOM_BOX, halfExtents=half_extents, rgbaColor=rgba_color)
+        collision_id = self.bullet.createCollisionShape(self.bullet.GEOM_BOX, halfExtents=half_extents) if collision else None
+
+        self.create_body(name, visual_id, collision_id, mass, position, orientation)
+
+    def create_body_plane(self,
+                          name: Optional[str],
+                          mass: float,
+                          normal: Tuple[float, float, float],
+                          position: Tuple[float, float, float],
+                          orientation: Tuple[float, float, float, float]):
+
+        collision_id = self.bullet.createCollisionShape(self.bullet.GEOM_PLANE, planeNormal=normal)
+        self.create_body(name, None, collision_id, mass, position, orientation)
+
+    def create_body(self,
+                    name: Optional[str],
+                    visual_id: Optional[int],
+                    collision_id: Optional[int],
+                    mass: float,
+                    position: Tuple[float, float, float],
+                    orientation: Tuple[float, float, float, float]):
         kwargs = {
             'baseMass': mass,
-            'baseVisualShapeIndex': visual_id,
             'basePosition': position,
             'baseOrientation': orientation
         }
+        set_optional_kv(kwargs, 'baseVisualShapeIndex', visual_id)
         set_optional_kv(kwargs, 'baseCollisionShapeIndex', collision_id)
 
         body_id = self.bullet.createMultiBody(**kwargs)
         self.add_item(Item(bullet=self.bullet, name=name, body_id=body_id, link_index=None))
+
 
     def rpy2quat(self, rpy: Tuple[float, float, float]):
         return self.bullet.getQuaternionFromEuler(rpy)
