@@ -30,10 +30,10 @@ class PioneerConfig:
 
     target_lo: Tuple[float, float, float] = (15, -10, 2)
     target_hi: Tuple[float, float, float] = (25, 10, 6)
-    target_radius: float = 0.01
-    target_rgba: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 1.0)
-    target_aim_radius: float = 0.2
-    target_aim_rgba: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.5)
+    target_aim_radius: float = 0.01
+    target_aim_rgba: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 1.0)
+    target_halo_radius: float = 0.2
+    target_halo_rgba: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.5)
 
     obstacle_size_lo: Tuple[float, float, float] = (0.1, 0.1, 5)
     obstacle_size_hi: Tuple[float, float, float] = (2, 2, 10)
@@ -65,7 +65,7 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
         self.a_max = self.config.max_a_to_v * self.v_max                    # absolute acceleration limit [-a_max, a_max]
         self.dt = self.world.step_time                                      # time passing between consecutive steps
 
-        self.potential: Optional[float] = None                              # potential reached at the end of the previous step
+        self.potential: Optional[float] = 0                                 # potential reached at the end of the previous step
 
         # obstacles
         self.obstacle_size: Optional[np.ndarray] = None
@@ -79,7 +79,7 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
         self.observation_space = self.observation_to_space(self.observe())
         self.reward_range = (-float('inf'), float('inf'))
 
-    def reset_world(self):
+    def reset_world(self) -> bool:
 
         assert len(self.config.target_lo) == 3
         assert len(self.config.target_hi) == 3
@@ -99,14 +99,6 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
 
         self.reset_joint_states(joint_positions)
 
-        self.scene.create_body_sphere('target',
-                                      collision=True,
-                                      mass=0.0,
-                                      radius=self.config.target_radius,
-                                      position=target_position,
-                                      orientation=self.scene.rpy2quat((0, 0, 0)),
-                                      rgba_color=self.config.target_rgba)
-
         self.scene.create_body_sphere('target:aim',
                                       collision=True,
                                       mass=0.0,
@@ -115,7 +107,15 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
                                       orientation=self.scene.rpy2quat((0, 0, 0)),
                                       rgba_color=self.config.target_aim_rgba)
 
-        self.scene.create_body_box(name='obstacle',
+        self.scene.create_body_sphere('target:halo',
+                                      collision=True,
+                                      mass=0.0,
+                                      radius=self.config.target_halo_radius,
+                                      position=target_position,
+                                      orientation=self.scene.rpy2quat((0, 0, 0)),
+                                      rgba_color=self.config.target_halo_rgba)
+
+        self.scene.create_body_box(name='obstacle:1',
                                    collision=True,
                                    mass=0.0,
                                    half_extents=obstacle_size,
@@ -124,6 +124,9 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
                                    rgba_color=(0, 0, 0, 1))
 
         self.potential = 0
+
+        self.world.step()
+        return not self.unwanted_collisions_present()
 
     def seed(self, seed=None) -> List[int]:
         self.np_random, seed = seeding.np_random(seed)
@@ -142,7 +145,7 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
 
         # issuing rewards
         pointer_coords = np.array(self.scene.items_by_name['robot:pointer'].pose().xyz)
-        target_coords = np.array(self.scene.items_by_name['target'].pose().xyz)
+        target_coords = np.array(self.scene.items_by_name['target:aim'].pose().xyz)
 
         diff = target_coords - pointer_coords
         distance = np.linalg.norm(diff)
@@ -180,7 +183,7 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
         v = self.joint_velocities()
 
         pointer_coords = np.array(self.scene.items_by_name['robot:pointer'].pose().xyz)
-        target_coords = np.array(self.scene.items_by_name['target'].pose().xyz)
+        target_coords = np.array(self.scene.items_by_name['target:aim'].pose().xyz)
 
         diff = target_coords - pointer_coords
         distance = np.linalg.norm(diff)
@@ -240,6 +243,53 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
 
         return m / (distance / s + 1)
 
+    def unwanted_collisions_present(self) -> bool:
+        contacts = self.contacts()
+
+        allowed_robot = {
+            'robot:rotator1': ['ground', 'robot:hinge1'],
+            'robot:hinge1': ['robot:arm1', 'robot:rotator1'],
+            'robot:arm1': ['robot:hinge1', 'robot:arm2'],
+            'robot:arm2': ['robot:rotator2', 'robot:arm1'],
+            'robot:rotator2': ['robot:hinge2', 'robot:arm2'],
+            'robot:hinge2': ['robot:arm3', 'robot:rotator2'],
+            'robot:arm3': ['robot:hinge2', 'robot:rotator3'],
+            'robot:rotator3': ['robot:arm3', 'robot:effector'],
+            'robot:effector': ['robot:pointer', 'robot:rotator3'],
+            'robot:pointer': ['robot:effector']
+        }
+
+        def not_in_allowed(ls: List[str], allowed: List[str]):
+            return [x for x in ls if x not in allowed]
+
+        for k, vs in contacts.items():
+            if k == 'ground':
+                for v in vs:
+                    if v not in ['robot:rotator1'] and not v.startswith('obstacle:'):
+                        return True
+
+            if k.startswith('obstacle:') and len(not_in_allowed(vs, ['ground'])) > 0:
+                return True
+
+            if k.startswith('target:') and len(vs) > 0:
+                return True
+
+            if k.startswith('robot:'):
+                if len(not_in_allowed(vs, allowed_robot.get(k, []))) > 0:
+                    return True
+
+        return False
+
+    def contacts(self) -> Dict[str, List[str]]:
+        pairs = self.scene.pull_contacting_items()
+
+        index = {}
+        for a, b in pairs:
+            index.setdefault(a, list()).append(b)
+            index.setdefault(b, list()).append(a)
+
+        return index
+
     @staticmethod
     def observation_to_space(observation: Observation) -> spaces.Space:
         low = np.full(observation.shape, -float('inf'), dtype=np.float32)
@@ -248,7 +298,7 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
 
 
 if __name__ == '__main__':
-    env = PioneerEnv(headless=False)
+    env = PioneerEnv(headless=False, render_config=RenderConfig(camera_distance=40))
     env.reset_gui_camera()
 
     # env.scene.create_body_box(name='obstacle:1',
@@ -269,14 +319,19 @@ if __name__ == '__main__':
     #
     # env.scene.items_by_name['test'].reset_pose((30.0, 3.0, 2.0), env.scene.rpy2quat((0, 0, 0)))
 
+    # env.world.step()
+    # print(env.contacts())
+    # print(env.unwanted_collisions_present())
+    # print(env.scene.pull_contacting_items())
+
+    # print([ContactPoint(*x) for x in env.bullet.getContactPoints()])
+
     target_joint = env.scene.joints_by_name['robot:hinge1_to_arm1']
     # target_joint.control_velocity(velocity=1.0)
     env_velocity = 1.0
 
     count = 0
     while True:
-        print(env.bullet.getContactPoints())
-
         target_joint.reset_state(target_joint.position(), velocity=env_velocity)
 
         # print(f'{target_joint.position()} - {target_joint.lower_limit}..{target_joint.upper_limit}')

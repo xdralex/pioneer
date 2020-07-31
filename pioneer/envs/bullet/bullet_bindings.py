@@ -49,3 +49,19 @@ JointState = namedtuple('JointState', ['joint_position',                    # fl
                                        'joint_velocity',                    # float
                                        'joint_reaction_forces',             # Tuple[float, float, float, float, float, float]
                                        'applied_joint_motor_torque'])       # float
+
+
+ContactPoint = namedtuple('ContactPoint', ['contact_flag',              # int
+                                           'body_id_a',                 # int
+                                           'body_id_b',                 # int
+                                           'link_index_a',              # int
+                                           'link_index_b',              # int
+                                           'position_on_a',             # Tuple[float, float, float]
+                                           'position_on_b',             # Tuple[float, float, float]
+                                           'contact_normal_on_b',       # Tuple[float, float, float]
+                                           'contact_distance',          # float
+                                           'normal_force',              # float
+                                           'lateral_friction1',         # float
+                                           'lateral_friction_dir1',     # Tuple[float, float, float]
+                                           'lateral_friction2',         # float
+                                           'lateral_friction_dir2'])    # Tuple[float, float, float]

@@ -5,7 +5,7 @@ import pybullet
 from pybullet_utils.bullet_client import BulletClient
 
 from pioneer.collections_util import set_optional_kv
-from pioneer.envs.bullet.bullet_bindings import BasePositionAndOrientation, LinkState, BaseVelocity, JointState
+from pioneer.envs.bullet.bullet_bindings import BasePositionAndOrientation, LinkState, BaseVelocity, JointState, ContactPoint
 
 
 class Pose:
@@ -36,12 +36,18 @@ class Velocity:
     angular: Tuple[float, float, float]
 
 
+@dataclass(frozen=True)
+class Index:
+    body_id: int
+    link_index: int
+
+
 class Item(object):
     def __init__(self,
                  bullet: BulletClient,
-                 name: Optional[str],
+                 name: str,
                  body_id: int,
-                 link_index: Optional[int]):
+                 link_index: int):
         self.bullet = bullet
         self.name = name
         self.body_id = body_id
@@ -51,7 +57,7 @@ class Item(object):
         return f'Item(name={self.name}, body_id={self.body_id}, link_index={self.link_index})'
 
     def pose(self) -> Pose:
-        if self.link_index is None:
+        if self.link_index == -1:
             data = BasePositionAndOrientation(*self.bullet.getBasePositionAndOrientation(self.body_id))
             return Pose(self.bullet, data.position, data.orientation)
         else:
@@ -59,7 +65,7 @@ class Item(object):
             return Pose(self.bullet, data.link_world_position, data.link_world_orientation)
 
     def velocity(self):
-        if self.link_index is None:
+        if self.link_index == -1:
             data = BaseVelocity(*self.bullet.getBaseVelocity(self.body_id))
             return Velocity(data.linear_velocity, data.angular_velocity)
         else:
@@ -67,17 +73,21 @@ class Item(object):
             return Velocity(data.world_link_linear_velocity, data.world_link_angular_velocity)
 
     def reset_pose(self, position: Tuple[float, float, float], orientation: Tuple[float, float, float, float]):
-        if self.link_index is not None:
+        if self.link_index != -1:
             raise AssertionError('Position can be reset only for base items: to control linked items use joint methods')
 
         self.bullet.resetBasePositionAndOrientation(bodyUniqueId=self.body_id, posObj=position, ornObj=orientation)
+
+    @property
+    def index(self):
+        return Index(self.body_id, self.link_index)
 
 
 class Joint(object):
     def __init__(self,
                  bullet: BulletClient,
                  item: Item,
-                 name: Optional[str],
+                 name: str,
                  body_id: int,
                  joint_index: int,
 
@@ -164,33 +174,45 @@ class Joint(object):
 
         self.bullet.resetJointState(**kwargs)
 
+    @property
+    def index(self):
+        return Index(self.body_id, self.joint_index)
+
 
 class Scene:
     def __init__(self, bullet: BulletClient):
         self.bullet = bullet
 
         self.items: List[Item] = []
+        self.items_by_id: Dict[Index, Item] = {}
         self.items_by_name: Dict[str, Item] = {}
 
         self.joints: List[Joint] = []
+        self.joints_by_id: Dict[Index, Joint] = {}
         self.joints_by_name: Dict[str, Joint] = {}
 
     def add_item(self, item: Item):
         self.items.append(item)
 
-        if item.name is not None:
-            assert item.name not in self.items_by_name
-            self.items_by_name[item.name] = item
+        index = Index(item.body_id, item.link_index)
+        assert index not in self.items_by_id
+        self.items_by_id[index] = item
+
+        assert item.name not in self.items_by_name
+        self.items_by_name[item.name] = item
 
     def add_joint(self, joint: Joint):
         self.joints.append(joint)
 
-        if joint.name is not None:
-            assert joint.name not in self.joints_by_name
-            self.joints_by_name[joint.name] = joint
+        index = Index(joint.body_id, joint.joint_index)
+        assert index not in self.joints_by_id
+        self.joints_by_id[index] = joint
+
+        assert joint.name not in self.joints_by_name
+        self.joints_by_name[joint.name] = joint
 
     def create_body_sphere(self,
-                           name: Optional[str],
+                           name: str,
                            collision: bool,
                            mass: float,
                            radius: float,
@@ -204,7 +226,7 @@ class Scene:
         self.create_body(name, visual_id, collision_id, mass, position, orientation)
 
     def create_body_box(self,
-                        name: Optional[str],
+                        name: str,
                         collision: bool,
                         mass: float,
                         half_extents: Tuple[float, float, float],
@@ -218,7 +240,7 @@ class Scene:
         self.create_body(name, visual_id, collision_id, mass, position, orientation)
 
     def create_body_plane(self,
-                          name: Optional[str],
+                          name: str,
                           mass: float,
                           normal: Tuple[float, float, float],
                           position: Tuple[float, float, float],
@@ -228,7 +250,7 @@ class Scene:
         self.create_body(name, None, collision_id, mass, position, orientation)
 
     def create_body(self,
-                    name: Optional[str],
+                    name: str,
                     visual_id: Optional[int],
                     collision_id: Optional[int],
                     mass: float,
@@ -243,8 +265,24 @@ class Scene:
         set_optional_kv(kwargs, 'baseCollisionShapeIndex', collision_id)
 
         body_id = self.bullet.createMultiBody(**kwargs)
-        self.add_item(Item(bullet=self.bullet, name=name, body_id=body_id, link_index=None))
+        self.add_item(Item(bullet=self.bullet, name=name, body_id=body_id, link_index=-1))
 
+    def pull_contacting_items(self) -> List[Tuple[str, str]]:
+        points = [ContactPoint(*x) for x in self.bullet.getContactPoints()]
+
+        contacts = set()
+        for p in points:
+            item_a = self.items_by_id[Index(p.body_id_a, p.link_index_a)]
+            item_b = self.items_by_id[Index(p.body_id_b, p.link_index_b)]
+
+            if item_a.name < item_b.name:
+                pair = (item_a.name, item_b.name)
+            else:
+                pair = (item_b.name, item_a.name)
+
+            contacts.add(pair)
+
+        return list(contacts)
 
     def rpy2quat(self, rpy: Tuple[float, float, float]):
         return self.bullet.getQuaternionFromEuler(rpy)

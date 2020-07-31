@@ -109,7 +109,7 @@ class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
             body_item = Item(bullet,
                              name=body_info.body_name.decode("utf8"),
                              body_id=body_id,
-                             link_index=None)
+                             link_index=-1)
 
             scene.add_item(body_item)
 
@@ -185,8 +185,12 @@ class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
             raise AssertionError(f'Render mode "{mode}" is not supported')
 
     def reset(self) -> Observation:
-        self.reset_simulator()
-        self.reset_world()
+        success = False
+
+        while not success:
+            self.reset_simulator()
+            success = self.reset_world()
+
         return self.observe()
 
     def step(self, action: Action) -> Tuple[Observation, float, bool, Dict]:
@@ -197,7 +201,7 @@ class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
         return observation, reward, done, info
 
     @abstractmethod
-    def reset_world(self):
+    def reset_world(self) -> bool:
         pass
 
     @abstractmethod
