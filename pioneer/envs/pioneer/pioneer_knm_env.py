@@ -28,8 +28,8 @@ class PioneerKinematicConfig:
     award_potential_slope: float = 10.0
     penalty_step: float = 1 / 100
 
-    target_lo: Tuple[float, float, float] = (15, -4, 2)
-    target_hi: Tuple[float, float, float] = (20, 4, 6)
+    target_lo: Tuple[float, float, float] = (15, -10, 2)
+    target_hi: Tuple[float, float, float] = (25, 10, 6)
     target_radius: float = 0.2
     target_rgba: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.5)
 
