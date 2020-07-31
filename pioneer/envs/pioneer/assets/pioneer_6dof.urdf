@@ -26,10 +26,32 @@
 
     <link name="world"/>
 
+    <link name="ground">
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 -0.5"/>
+            <geometry>
+                <box size="200 200 1"/>
+            </geometry>
+            <material name="ground_mat"/>
+        </visual>
+
+        <collision>
+            <origin rpy="0 0 0" xyz="0 0 -0.5"/>
+            <geometry>
+                <box size="200 200 1"/>
+            </geometry>
+        </collision>
+
+        <inertial>
+            <mass value="10.0"/>
+            <inertia ixx="10.0" ixy="0.0" ixz="0.0" iyy="10.0" iyz="0.0" izz="10.0"/>
+        </inertial>
+    </link>
+
     <link name="robot:base">
         <inertial>
             <mass value="1.0"/>
-           <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
         </inertial>
     </link>
 
@@ -51,7 +73,7 @@
 
         <inertial>
             <mass value="1.0"/>
-           <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
         </inertial>
     </link>
 
@@ -112,7 +134,7 @@
             <material name="arm_mat"/>
         </visual>
 
-         <collision>
+        <collision>
             <origin rpy="0 -1.5708 0" xyz="0 0 6"/>
             <geometry>
                 <box size="12 1 2"/>
@@ -165,7 +187,7 @@
 
         <inertial>
             <mass value="1.0"/>
-           <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
         </inertial>
     </link>
 
@@ -244,7 +266,7 @@
 
         <inertial>
             <mass value="1.0"/>
-           <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
         </inertial>
     </link>
 
@@ -304,6 +326,11 @@
             <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
         </inertial>
     </link>
+
+    <joint name="world_to_ground" type="fixed">
+        <parent link="world"/>
+        <child link="ground"/>
+    </joint>
 
     <joint name="world_to_base" type="fixed">
         <parent link="world"/>

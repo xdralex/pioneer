@@ -19,7 +19,7 @@ Observation = TypeVar('Observation')
 class RenderConfig:
     camera_target: Tuple[float, float, float] = (0, 0, 0)
 
-    camera_distance: float = 100.0
+    camera_distance: float = 150.0
 
     camera_yaw: float = 120.0
     camera_pitch: float = -30.0

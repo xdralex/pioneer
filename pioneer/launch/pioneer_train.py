@@ -60,7 +60,8 @@ def train(results_dir: str,
                                'fcnet_hiddens': [256, 256]
                            },
                            'train_batch_size': 8000,
-                           'entropy_coeff_schedule': tune.sample_from(lambda _: entropy_coeff_schedule(1e-3, 1e-1, 1000000)),
+                           'entropy_coeff_schedule': [(0, 5e-2), (1000000, 0)],
+                           # 'entropy_coeff_schedule': tune.sample_from(lambda _: entropy_coeff_schedule(1e-3, 1e-1, 1000000)),
                            'lr': 2e-5,
                            'num_sgd_iter': 20,
                            'observation_filter': 'ConcurrentMeanStdFilter'
@@ -77,7 +78,7 @@ def train(results_dir: str,
 
 
 if __name__ == '__main__':
-    train(results_dir='~/ray_results',
+    train(results_dir='~/Data/ray_results',
           checkpoint_freq=10,
           num_samples=1,
           num_workers=4,
