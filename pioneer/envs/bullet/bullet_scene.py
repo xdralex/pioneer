@@ -309,8 +309,7 @@ class World:
         self.bullet.setTimeStep(timestep)
 
     def step(self):
-        for _ in range(self.frame_skip):
-            self.bullet.stepSimulation()
+        self.bullet.stepSimulation()
 
     @property
     def step_time(self) -> float:

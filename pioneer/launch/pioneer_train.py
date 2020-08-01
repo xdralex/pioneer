@@ -60,9 +60,9 @@ def train(results_dir: str,
                                'fcnet_hiddens': [256, 256]
                            },
                            'train_batch_size': 8000,
-                           'entropy_coeff_schedule': [(0, 5e-2), (1000000, 0)],
+                           # 'entropy_coeff_schedule': [(0, 5e-2), (1000000, 0)],
                            # 'entropy_coeff_schedule': tune.sample_from(lambda _: entropy_coeff_schedule(1e-3, 1e-1, 1000000)),
-                           'lr': 2e-5,
+                           'lr': tune.loguniform(1e-5, 1e-4),
                            'num_sgd_iter': 20,
                            'observation_filter': 'ConcurrentMeanStdFilter'
                        },

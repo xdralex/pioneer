@@ -65,9 +65,6 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
 
         # reached/set at the end of an action
         self.potential: Optional[float] = 0                                 # ($)
-        self.r: Optional[np.ndarray] = None                                 # joint positions (radians)
-        self.pointer_coords: Optional[np.ndarray] = None                    # (units)
-        self.target_coords: Optional[np.ndarray] = None                     # (units)
 
         # obstacles
         self.obstacle_size: Optional[np.ndarray] = None
@@ -125,10 +122,7 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
                                    rgba_color=(0, 0, 0, 1))
 
         self.potential = 0
-        self.r = joint_positions
-
-        self.reset_joint_positions(self.r)
-        self.update_state_before_step()
+        self.reset_joint_states(joint_positions)
         self.world.step()
         return not self.unwanted_collisions_present()
 
@@ -139,28 +133,19 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
     def act(self, action: Action, world_index: int, step_index: int) -> Tuple[float, bool, Dict]:
         # computing angular kinematics
         v = np.clip(action * self.v_max, -self.v_max, self.v_max)
-        r0 = self.r
 
-        dv = v * self.dt
-        r1 = np.clip(r0 + dv, self.r_lo, self.r_hi)
-
-        self.reset_joint_positions(r1)
-        self.update_state_before_step()
-        self.world.step()
-
-        if self.unwanted_collisions_present():
-            self.reset_joint_positions(r0)
-            self.update_state_before_step()
+        r0 = self.joint_positions()
+        for _ in range(self.world.frame_skip):
+            r = self.joint_positions()
+            self.reset_joint_states(r, v)
             self.world.step()
-
-            self.r = r0
-            progress = False
-        else:
-            self.r = r1
-            progress = True
+        r1 = self.joint_positions()
 
         # issuing rewards
-        diff = self.target_coords - self.pointer_coords
+        pointer_coords = np.array(self.scene.items_by_name['robot:pointer'].pose().xyz)
+        target_coords = np.array(self.scene.items_by_name['target:aim'].pose().xyz)
+
+        diff = target_coords - pointer_coords
         distance = np.linalg.norm(diff)
 
         old_potential = self.potential
@@ -182,30 +167,31 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
             'dist': f'{distance:.3f}',
             'pot': f'{self.potential:.3f}',
 
-            'target': arr2str(self.target_coords),
-            'pointer': arr2str(self.pointer_coords),
+            'target': arr2str(target_coords),
+            'pointer': arr2str(pointer_coords),
 
             'action': arr2str(action),
             'r0': arr2str(r0),
             'r1': arr2str(r1),
-            'pr': progress,
             'v': arr2str(v)
         }
 
-        print(dict2str(info, delim='  '))
-
-        self.world.step()
         return reward, done, info
 
     def observe(self) -> Observation:
-        diff = self.target_coords - self.pointer_coords
+        r = self.joint_positions()
+
+        pointer_coords = np.array(self.scene.items_by_name['robot:pointer'].pose().xyz)
+        target_coords = np.array(self.scene.items_by_name['target:aim'].pose().xyz)
+
+        diff = target_coords - pointer_coords
         distance = np.linalg.norm(diff)
 
-        r_lo_dist = self.r - self.r_lo
-        r_hi_diff = self.r_hi - self.r
+        r_lo_dist = r - self.r_lo
+        r_hi_diff = self.r_hi - r
 
         return np.concatenate([
-            self.r, np.cos(self.r), np.sin(self.r),
+            r, np.cos(r), np.sin(r),
 
             self.r_lo, np.cos(self.r_lo), np.sin(self.r_lo),
             self.r_hi, np.cos(self.r_hi), np.sin(self.r_hi),
@@ -216,17 +202,13 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
             self.obstacle_size,
             self.obstacle_position,
 
-            self.pointer_coords,
-            self.target_coords,
+            pointer_coords,
+            target_coords,
             diff,
 
             np.array([distance]),
             np.array([self.potential])
         ])
-
-    def update_state_before_step(self):
-        self.pointer_coords = np.array(self.scene.items_by_name['robot:pointer'].pose().xyz)
-        self.target_coords = np.array(self.scene.items_by_name['target:aim'].pose().xyz)
 
     @property
     def dof(self) -> int:
@@ -240,12 +222,15 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
     def joint_positions(self) -> np.ndarray:
         return np.array([x.position() for x in self.scene.joints])
 
-    def reset_joint_positions(self, positions: np.ndarray):
+    def reset_joint_states(self, positions: np.ndarray, velocities: Optional[np.ndarray] = None):
         positions_list = list(positions)
-        assert len(positions_list) == self.dof
+        velocities_list = [None] * self.dof if velocities is None else list(velocities)
 
-        for position, joint in zip(positions_list, self.scene.joints):
-            joint.reset_state(position)
+        assert len(positions_list) == self.dof
+        assert len(velocities_list) == self.dof
+
+        for position, velocity, joint in zip(positions_list, velocities_list, self.scene.joints):
+            joint.reset_state(position, velocity)
 
     def compute_potential(self, distance: float) -> float:
         m = self.config.award_max - self.config.award_done      # max potential (achieved when the distance is 0)
@@ -324,17 +309,17 @@ if __name__ == '__main__':
     env_velocity = 1.0
     target_joint.reset_state(target_joint.position(), velocity=env_velocity)
 
-    a = env.scene.items_by_name['robot:hinge1']
-    b = env.scene.items_by_name['robot:arm1']
-
-    print(env.bullet.getDynamicsInfo(a.body_id, a.link_index))
-
-    env.bullet.changeDynamics(bodyUniqueId=a.body_id, linkIndex=a.link_index, lateralFriction=0.0)
-    env.bullet.changeDynamics(bodyUniqueId=b.body_id, linkIndex=b.link_index, lateralFriction=0.0)
+    # a = env.scene.items_by_name['robot:hinge1']
+    # b = env.scene.items_by_name['robot:arm1']
+    #
+    # print(env.bullet.getDynamicsInfo(a.body_id, a.link_index))
+    #
+    # env.bullet.changeDynamics(bodyUniqueId=a.body_id, linkIndex=a.link_index, lateralFriction=0.0)
+    # env.bullet.changeDynamics(bodyUniqueId=b.body_id, linkIndex=b.link_index, lateralFriction=0.0)
 
     count = 0
     while True:
-        # env.act(np.array([0, 1, 0, 0, 0, 0]), 0, 0)
+        env.act(np.array([0, 1, 0, 0, 0, 0]), 0, 0)
         # target_joint.reset_state(target_joint.position(), velocity=env_velocity)
         #
         # rr = target_joint.upper_limit - target_joint.lower_limit
@@ -345,8 +330,8 @@ if __name__ == '__main__':
         #     env_velocity = -1.0
 
 
-        for _ in range(env.world.frame_skip):
-            print(f'{target_joint.position()} @ {target_joint.velocity()} - {target_joint.lower_limit}..{target_joint.upper_limit}')
-            env.bullet.stepSimulation()
+        # for _ in range(env.world.frame_skip):
+        #     print(f'{target_joint.position()} @ {target_joint.velocity()} - {target_joint.lower_limit}..{target_joint.upper_limit}')
+        #     env.bullet.stepSimulation()
 
         sleep(env.world.step_time)
