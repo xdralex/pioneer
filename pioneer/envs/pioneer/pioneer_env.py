@@ -9,7 +9,7 @@ from gym import utils
 from gym.utils import seeding
 from numpy.random.mtrand import RandomState
 
-from pioneer.collections_util import arr2str
+from pioneer.collections_util import arr2str, dict2str
 from pioneer.envs.bullet import BulletEnv, RenderConfig, SimulationConfig
 
 Action = np.ndarray
@@ -18,27 +18,26 @@ Observation = np.ndarray
 
 @dataclass
 class PioneerConfig:
-    max_v_to_r: float = 2       # seconds^-1
-    max_a_to_v: float = 10      # seconds^-1
+    r_to_max_v: float = 2.0                                                         # sec
 
-    done_distance: float = 0.1
+    done_distance: float = 0.01                                                     # m
 
-    award_max: float = 100.0
-    award_done: float = 5.0
+    award_max: float = 100.0                                                        # $
+    award_done: float = 5.0                                                         # $
     award_potential_slope: float = 10.0
-    penalty_step: float = 1 / 100
+    penalty_step: float = 1 / 100                                                   # $
 
-    target_lo: Tuple[float, float, float] = (15, -10, 2)
-    target_hi: Tuple[float, float, float] = (25, 10, 6)
-    target_aim_radius: float = 0.01
+    target_lo: Tuple[float, float, float] = (1.5, -1.0, 0.2)                        # m
+    target_hi: Tuple[float, float, float] = (2.5, 1.0, 0.6)                         # m
+    target_aim_radius: float = 0.001                                                # m
     target_aim_rgba: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 1.0)
-    target_halo_radius: float = 0.2
+    target_halo_radius: float = 0.025                                               # m
     target_halo_rgba: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.5)
 
-    obstacle_size_lo: Tuple[float, float, float] = (0.1, 0.1, 5)
-    obstacle_size_hi: Tuple[float, float, float] = (2, 2, 10)
-    obstacle_pos_lo: Tuple[float, float] = (5, -10)
-    obstacle_pos_hi: Tuple[float, float] = (20, 10)
+    obstacle_size_lo: Tuple[float, float, float] = (0.05, 0.05, 0.3)                # m
+    obstacle_size_hi: Tuple[float, float, float] = (0.2, 0.2, 1)                    # m
+    obstacle_pos_lo: Tuple[float, float] = (1, -1)                                  # m
+    obstacle_pos_hi: Tuple[float, float] = (2, 1)                                   # m
 
 
 # TODO: inheritance is hard – separation between this and BulletEnv should be much cleaner
@@ -60,12 +59,11 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
         self.config = pioneer_config or PioneerConfig()
 
         # kinematics & environment
-        self.r_lo, self.r_hi = self.joint_limits()                          # position limits [r_lo, r_hi]
-        self.v_max = self.config.max_v_to_r * (self.r_hi - self.r_lo)       # absolute velocity limit [-v_max, v_max]
-        self.a_max = self.config.max_a_to_v * self.v_max                    # absolute acceleration limit [-a_max, a_max]
-        self.dt = self.world.step_time                                      # time passing between consecutive steps
+        self.r_lo, self.r_hi = self.joint_limits()                          # position limits [r_lo, r_hi] (m)
+        self.v_max = (self.r_hi - self.r_lo) / self.config.r_to_max_v       # absolute velocity limit [-v_max, v_max] (m/sec)
+        self.dt = self.world.step_time                                      # time passing between consecutive steps (sec)
 
-        self.potential: Optional[float] = 0                                 # potential reached at the end of the previous step
+        self.potential: Optional[float] = 0                                 # potential reached at the end of the previous step ($)
 
         # obstacles
         self.obstacle_size: Optional[np.ndarray] = None
@@ -75,7 +73,8 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
         self.reset_world()
 
         # spaces
-        self.action_space = spaces.Box(-self.a_max, self.a_max, dtype=np.float32)
+        v_norm = np.ones(self.dof, dtype=np.float32)
+        self.action_space = spaces.Box(-v_norm, v_norm, dtype=np.float32)
         self.observation_space = self.observation_to_space(self.observe())
         self.reward_range = (-float('inf'), float('inf'))
 
@@ -97,7 +96,7 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
         self.obstacle_size = np.array(obstacle_size, dtype=np.float32)
         self.obstacle_position = np.array(obstacle_pos, dtype=np.float32)
 
-        self.reset_joint_states(joint_positions)
+        self.reset_joint_positions(joint_positions)
 
         self.scene.create_body_sphere('target:aim',
                                       collision=True,
@@ -134,14 +133,20 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
 
     def act(self, action: Action, world_index: int, step_index: int) -> Tuple[float, bool, Dict]:
         # computing angular kinematics
-        a = action
-        r = self.joint_positions()
+        v = np.clip(action * self.v_max, -self.v_max, self.v_max)
+        r0 = self.joint_positions()
 
-        v0 = self.joint_velocities()
-        v1 = v0 + a * self.dt
-        v1 = np.clip(v1, -self.v_max, self.v_max)
+        dv = v * self.dt
+        r1 = np.clip(r0 + dv, self.r_lo, self.r_hi)
 
-        self.reset_joint_states(r, v1)
+        assert not self.unwanted_collisions_present()
+        self.reset_joint_positions(r1)
+        self.world.step()
+
+        if self.unwanted_collisions_present():
+            r1 = r0
+            self.reset_joint_positions(r1)
+            self.world.step()
 
         # issuing rewards
         pointer_coords = np.array(self.scene.items_by_name['robot:pointer'].pose().xyz)
@@ -169,18 +174,18 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
             'dist': f'{distance:.3f}',
             'pot': f'{self.potential:.3f}',
 
-            'a': arr2str(a),
-            'v0': arr2str(v0),
-            'v1': arr2str(v1),
-            'r': arr2str(r)
+            'r0': arr2str(r0),
+            'r1': arr2str(r1),
+            'v': arr2str(v)
         }
+
+        print(dict2str(info, delim='  '))
 
         self.world.step()
         return reward, done, info
 
     def observe(self) -> Observation:
         r = self.joint_positions()
-        v = self.joint_velocities()
 
         pointer_coords = np.array(self.scene.items_by_name['robot:pointer'].pose().xyz)
         target_coords = np.array(self.scene.items_by_name['target:aim'].pose().xyz)
@@ -193,7 +198,6 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
 
         return np.concatenate([
             r, np.cos(r), np.sin(r),
-            v, np.cos(v), np.sin(v),
 
             self.r_lo, np.cos(self.r_lo), np.sin(self.r_lo),
             self.r_hi, np.cos(self.r_hi), np.sin(self.r_hi),
@@ -224,18 +228,12 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
     def joint_positions(self) -> np.ndarray:
         return np.array([x.position() for x in self.scene.joints])
 
-    def joint_velocities(self) -> np.ndarray:
-        return np.array([x.velocity() for x in self.scene.joints])
-
-    def reset_joint_states(self, positions: np.ndarray, velocities: Optional[np.ndarray] = None):
+    def reset_joint_positions(self, positions: np.ndarray):
         positions_list = list(positions)
-        velocities_list = [None] * self.dof if velocities is None else list(velocities)
-
         assert len(positions_list) == self.dof
-        assert len(velocities_list) == self.dof
 
-        for position, velocity, joint in zip(positions_list, velocities_list, self.scene.joints):
-            joint.reset_state(position, velocity)
+        for position, joint in zip(positions_list, self.scene.joints):
+            joint.reset_state(position)
 
     def compute_potential(self, distance: float) -> float:
         m = self.config.award_max - self.config.award_done      # max potential (achieved when the distance is 0)
@@ -298,33 +296,29 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
 
 
 if __name__ == '__main__':
-    env = PioneerEnv(headless=False, render_config=RenderConfig(camera_distance=40))
+    env = PioneerEnv(headless=False, render_config=RenderConfig(camera_distance=4))
     env.reset_gui_camera()
 
     # print(env.contacts())
     # print(env.unwanted_collisions_present())
 
-    target_joint = env.scene.joints_by_name['robot:hinge1_to_arm1']
-    # target_joint.control_velocity(velocity=1.0)
-    env_velocity = 1.0
+    # target_joint = env.scene.joints_by_name['robot:hinge1_to_arm1']
+    # env_velocity = 1.0
+    # target_joint.reset_state(target_joint.position(), velocity=env_velocity)
 
     count = 0
     while True:
-        target_joint.reset_state(target_joint.position(), velocity=env_velocity)
+        env.act(np.array([0, 1, 0, 0, 0, 0]), 0, 0)
 
-        # print(f'{target_joint.position()} - {target_joint.lower_limit}..{target_joint.upper_limit}')
+        # print(f'{target_joint.position()} @ {target_joint.velocity()} - {target_joint.lower_limit}..{target_joint.upper_limit}')
+        # target_joint.reset_state(target_joint.position(), velocity=env_velocity)
+        #
+        # rr = target_joint.upper_limit - target_joint.lower_limit
+        # if target_joint.position() < target_joint.lower_limit + 0.01 * rr:
+        #     env_velocity = 1.0
+        #
+        # if target_joint.position() > target_joint.upper_limit - 0.01 * rr:
+        #     env_velocity = -1.0
 
-        rr = target_joint.upper_limit - target_joint.lower_limit
-        if target_joint.position() < target_joint.lower_limit + 0.01 * rr:
-            # target_joint.control_velocity(velocity=1.0)
-            env_velocity = 1.0
-
-        if target_joint.position() > target_joint.upper_limit - 0.01 * rr:
-            # target_joint.control_velocity(velocity=-1.0)
-            env_velocity = -1.0
-
-        # target_joint.control_velocity(velocity=10.0, max_force=1000)
-        # target_joint.control_position(pos, position_gain=0.1, velocity_gain=0.1, max_force=0)
-
-        env.world.step()
+        # env.world.step()
         sleep(env.world.step_time)
