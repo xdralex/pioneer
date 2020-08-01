@@ -28,9 +28,9 @@
 
     <link name="ground">
         <visual>
-            <origin rpy="0 0 0" xyz="0 0 -0.5"/>
+            <origin rpy="0 0 0" xyz="0 0 -0.1"/>
             <geometry>
-                <box size="200 200 1"/>
+                <box size="60 60 0.2"/>
             </geometry>
             <material name="ground_mat"/>
         </visual>
@@ -38,7 +38,7 @@
         <collision>
             <origin rpy="0 0 0" xyz="0 0 -0.5"/>
             <geometry>
-                <box size="200 200 1"/>
+                <box size="60 60 0.2"/>
             </geometry>
         </collision>
 

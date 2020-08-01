@@ -21,7 +21,7 @@ class RenderConfig:
 
     camera_distance: float = 100.0
 
-    camera_yaw: float = 120.0
+    camera_yaw: float = 135.0
     camera_pitch: float = -30.0
     camera_roll: float = 0.0
 
