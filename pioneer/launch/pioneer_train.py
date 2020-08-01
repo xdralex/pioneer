@@ -81,5 +81,5 @@ if __name__ == '__main__':
     train(results_dir='~/Data/ray_results',
           checkpoint_freq=10,
           num_samples=1,
-          num_workers=4,
+          num_workers=1,
           monitor=True)

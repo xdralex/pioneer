@@ -20,24 +20,24 @@ Observation = np.ndarray
 class PioneerConfig:
     r_to_max_v: float = 2.0                                                         # sec
 
-    done_distance: float = 0.01                                                     # m
+    done_distance: float = 0.01                                                     # units
 
     award_max: float = 100.0                                                        # $
     award_done: float = 5.0                                                         # $
     award_potential_slope: float = 10.0
     penalty_step: float = 1 / 100                                                   # $
 
-    target_lo: Tuple[float, float, float] = (1.5, -1.0, 0.2)                        # m
-    target_hi: Tuple[float, float, float] = (2.5, 1.0, 0.6)                         # m
-    target_aim_radius: float = 0.001                                                # m
+    target_lo: Tuple[float, float, float] = (1.5, -1.0, 0.2)                        # units
+    target_hi: Tuple[float, float, float] = (2.5, 1.0, 0.6)                         # units
+    target_aim_radius: float = 0.001                                                # units
     target_aim_rgba: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 1.0)
-    target_halo_radius: float = 0.025                                               # m
+    target_halo_radius: float = 0.025                                               # units
     target_halo_rgba: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.5)
 
-    obstacle_size_lo: Tuple[float, float, float] = (0.05, 0.05, 0.3)                # m
-    obstacle_size_hi: Tuple[float, float, float] = (0.2, 0.2, 1)                    # m
-    obstacle_pos_lo: Tuple[float, float] = (1, -1)                                  # m
-    obstacle_pos_hi: Tuple[float, float] = (2, 1)                                   # m
+    obstacle_size_lo: Tuple[float, float, float] = (0.05, 0.05, 0.3)                # units
+    obstacle_size_hi: Tuple[float, float, float] = (0.2, 0.2, 1)                    # units
+    obstacle_pos_lo: Tuple[float, float] = (1, -1)                                  # units
+    obstacle_pos_hi: Tuple[float, float] = (2, 1)                                   # units
 
 
 # TODO: inheritance is hard – separation between this and BulletEnv should be much cleaner
@@ -59,11 +59,12 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
         self.config = pioneer_config or PioneerConfig()
 
         # kinematics & environment
-        self.r_lo, self.r_hi = self.joint_limits()                          # position limits [r_lo, r_hi] (m)
-        self.v_max = (self.r_hi - self.r_lo) / self.config.r_to_max_v       # absolute velocity limit [-v_max, v_max] (m/sec)
+        self.r_lo, self.r_hi = self.joint_limits()                          # position limits [r_lo, r_hi] (radians)
+        self.v_max = (self.r_hi - self.r_lo) / self.config.r_to_max_v       # absolute velocity limit [-v_max, v_max] (radian/sec)
         self.dt = self.world.step_time                                      # time passing between consecutive steps (sec)
 
         self.potential: Optional[float] = 0                                 # potential reached at the end of the previous step ($)
+        self.r: Optional[np.ndarray] = None                                 # positions set at the end of the previous step (radians)
 
         # obstacles
         self.obstacle_size: Optional[np.ndarray] = None
@@ -107,7 +108,7 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
                                       rgba_color=self.config.target_aim_rgba)
 
         self.scene.create_body_sphere('target:halo',
-                                      collision=True,
+                                      collision=False,
                                       mass=0.0,
                                       radius=self.config.target_halo_radius,
                                       position=target_position,
@@ -123,6 +124,7 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
                                    rgba_color=(0, 0, 0, 1))
 
         self.potential = 0
+        self.r = joint_positions
 
         self.world.step()
         return not self.unwanted_collisions_present()
@@ -131,22 +133,27 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
+    # TODO: should pointer coords be computed BEFORE world step (in act and observe)???
     def act(self, action: Action, world_index: int, step_index: int) -> Tuple[float, bool, Dict]:
         # computing angular kinematics
         v = np.clip(action * self.v_max, -self.v_max, self.v_max)
-        r0 = self.joint_positions()
+        r0 = self.r
 
         dv = v * self.dt
         r1 = np.clip(r0 + dv, self.r_lo, self.r_hi)
 
-        assert not self.unwanted_collisions_present()
         self.reset_joint_positions(r1)
         self.world.step()
 
         if self.unwanted_collisions_present():
-            r1 = r0
-            self.reset_joint_positions(r1)
+            self.reset_joint_positions(r0)
             self.world.step()
+
+            self.r = r0
+            progress = False
+        else:
+            self.r = r1
+            progress = True
 
         # issuing rewards
         pointer_coords = np.array(self.scene.items_by_name['robot:pointer'].pose().xyz)
@@ -174,8 +181,10 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
             'dist': f'{distance:.3f}',
             'pot': f'{self.potential:.3f}',
 
+            'action': arr2str(action),
             'r0': arr2str(r0),
             'r1': arr2str(r1),
+            'pr': progress,
             'v': arr2str(v)
         }
 
@@ -185,7 +194,7 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
         return reward, done, info
 
     def observe(self) -> Observation:
-        r = self.joint_positions()
+        r = self.r
 
         pointer_coords = np.array(self.scene.items_by_name['robot:pointer'].pose().xyz)
         target_coords = np.array(self.scene.items_by_name['target:aim'].pose().xyz)
@@ -298,6 +307,12 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
 if __name__ == '__main__':
     env = PioneerEnv(headless=False, render_config=RenderConfig(camera_distance=4))
     env.reset_gui_camera()
+
+    env.reset_joint_positions(np.array([0.481, 1.033, -0.875, -0.850, -0.144, -0.689]))
+    print(env.scene.items_by_name['robot:pointer'].pose().xyz)
+
+    env.reset_joint_positions(np.array([0.252, 1.036, -0.849, -1.083, -0.251, -0.742]))
+    print(env.scene.items_by_name['robot:pointer'].pose().xyz)
 
     # print(env.contacts())
     # print(env.unwanted_collisions_present())
