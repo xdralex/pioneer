@@ -5,7 +5,7 @@ import yaml
 
 import click
 
-from pioneer.launch.pioneer_train import train
+from pioneer.launch.pioneer_train import train_agent
 from pioneer.util import launch_tensorboard, configure_logging, dump
 
 
@@ -23,11 +23,11 @@ def cli_pioneer_train(experiment: str, checkpoint_freq: int, num_samples: int, n
     training_root = config['tracking']['training_root']
     experiment_dir = os.path.join(training_root, experiment)
 
-    df = train(results_dir=experiment_dir,
-               checkpoint_freq=checkpoint_freq,
-               num_samples=num_samples,
-               num_workers=num_workers,
-               monitor=not no_monitor)
+    df = train_agent(results_dir=experiment_dir,
+                     checkpoint_freq=checkpoint_freq,
+                     num_samples=num_samples,
+                     num_workers=num_workers,
+                     monitor=not no_monitor)
 
     df_dump = dump(df, cols=['experiment_id',
                              'trial_id',

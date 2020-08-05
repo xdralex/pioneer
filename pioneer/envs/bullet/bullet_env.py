@@ -28,9 +28,13 @@ class RenderConfig:
     render_width: int = 640
     render_height: int = 400
 
+    debug_position: Tuple[float, float, float] = (-10, -10, 1)
+    debug_color: Tuple[float, float, float] = (255, 0, 0)
+    debug_size: float = 1
+
     projection_fov: float = 30
     projection_near: float = 0.1
-    projection_far: float = 20.0
+    projection_far: float = 40.0
 
     light_direction: Tuple[float, float, float] = (0, 0, 1)
     light_color: Tuple[float, float, float] = (1, 1, 1)
@@ -89,6 +93,7 @@ class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
         self.bullet: Optional[BulletClient] = None
         self.world: Optional[World] = None
         self.scene: Optional[Scene] = None
+        self.debug_id: Optional[int] = None
 
         self.world_index = -1
         self.step_index = 0
@@ -102,6 +107,10 @@ class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
                            frame_skip=self.simulation_config.frame_skip,
                            gravity=self.simulation_config.gravity)
         self.scene = self.load_scene(self.bullet, self.model_path, self.simulation_config)
+        self.debug_id = self.bullet.addUserDebugText(text='',
+                                                     textPosition=self.render_config.debug_position,
+                                                     textColorRGB=self.render_config.debug_color,
+                                                     textSize=self.render_config.debug_size)
 
         self.world_index += 1
         self.step_index = 0
@@ -214,6 +223,14 @@ class BulletEnv(gym.Env, Generic[Action, Observation], ABC):
         reward, done, info = self.act(action, self.world_index, self.step_index)
         observation = self.observe()
         return observation, reward, done, info
+
+    def update_debug(self, text: str):
+        self.debug_id = self.bullet.addUserDebugText(text=text,
+                                                     textPosition=self.render_config.debug_position,
+                                                     textColorRGB=self.render_config.debug_color,
+                                                     textSize=self.render_config.debug_size,
+                                                     replaceItemUniqueId=self.debug_id)
+
 
     @abstractmethod
     def reset_world(self) -> bool:

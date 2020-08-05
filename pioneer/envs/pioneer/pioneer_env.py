@@ -24,7 +24,7 @@ class PioneerConfig:
 
     award_max: float = 100.0                                                        # $
     award_done: float = 5.0                                                         # $
-    award_potential_slope: float = 10.0
+    award_slope: float = 1
     penalty_step: float = 1 / 100                                                   # $
 
     target_lo: Tuple[float, float, float] = (1.5, -1.0, 0.2)                        # units
@@ -44,6 +44,7 @@ class PioneerConfig:
 class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
     def __init__(self,
                  headless: bool = True,
+                 debug: bool = False,
                  pioneer_config: Optional[PioneerConfig] = None,
                  simulation_config: Optional[SimulationConfig] = None,
                  render_config: Optional[RenderConfig] = None):
@@ -56,6 +57,7 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
         BulletEnv.__init__(self, model_path, headless, simulation_config, render_config)
         utils.EzPickle.__init__(self)
 
+        self.debug = debug
         self.config = pioneer_config or PioneerConfig()
 
         # kinematics & environment
@@ -113,17 +115,18 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
                                       orientation=self.scene.rpy2quat((0, 0, 0)),
                                       rgba_color=self.config.target_halo_rgba)
 
-        self.scene.create_body_box(name='obstacle:1',
-                                   collision=True,
-                                   mass=0.0,
-                                   half_extents=obstacle_size,
-                                   position=(obstacle_pos[0], obstacle_pos[1], obstacle_size[2]),
-                                   orientation=self.scene.rpy2quat((0, 0, 0)),
-                                   rgba_color=(0, 0, 0, 1))
+        # self.scene.create_body_box(name='obstacle:1',
+        #                            collision=True,
+        #                            mass=0.0,
+        #                            half_extents=obstacle_size,
+        #                            position=(obstacle_pos[0], obstacle_pos[1], obstacle_size[2]),
+        #                            orientation=self.scene.rpy2quat((0, 0, 0)),
+        #                            rgba_color=(0, 0, 0, 1))
 
         self.potential = 0
         self.reset_joint_states(joint_positions)
         self.world.step()
+
         return not self.unwanted_collisions_present()
 
     def seed(self, seed=None) -> List[int]:
@@ -176,6 +179,9 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
             'v': arr2str(v)
         }
 
+        if self.debug:
+            self.update_debug(f'dist={distance:.3f}, pot={self.potential:.3f}, rew={reward:.3f}, action={arr2str(action)}')
+
         return reward, done, info
 
     def observe(self) -> Observation:
@@ -199,8 +205,8 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
             r_lo_dist, np.cos(r_lo_dist), np.sin(r_lo_dist),
             r_hi_diff, np.cos(r_hi_diff), np.sin(r_hi_diff),
 
-            self.obstacle_size,
-            self.obstacle_position,
+            # self.obstacle_size,
+            # self.obstacle_position,
 
             pointer_coords,
             target_coords,
@@ -234,9 +240,9 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
 
     def compute_potential(self, distance: float) -> float:
         m = self.config.award_max - self.config.award_done      # max potential (achieved when the distance is 0)
-        s = self.config.award_potential_slope                   # slope of the potential curve
+        s = self.config.award_slope                             # slope of the potential curve
 
-        return m / (distance / s + 1)
+        return m / (distance * s + 1)
 
     def unwanted_collisions_present(self) -> bool:
         contacts = self.contacts()
