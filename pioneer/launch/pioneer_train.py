@@ -23,7 +23,7 @@ def train_agent(results_dir: str,
             award_slope=env_config['award_slope'],
             penalty_step=env_config['penalty_step']
         )
-        pioneer_env = PioneerEnv(pioneer_config=pioneer_config)
+        pioneer_env = PioneerEnv(pioneer_config=pioneer_config, debug=True)
         return TimeLimit(pioneer_env, max_episode_steps=500)
 
     register_env('Pioneer-v1', prepare_env)
