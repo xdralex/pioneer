@@ -180,6 +180,7 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
         }
 
         if self.debug:
+            print(f'dist={distance:.3f}, pot={self.potential:.3f}, rew={reward:.3f}, action={arr2str(action)}')
             self.update_debug(f'dist={distance:.3f}, pot={self.potential:.3f}, rew={reward:.3f}, action={arr2str(action)}')
 
         return reward, done, info
@@ -312,7 +313,8 @@ if __name__ == '__main__':
     # print(env.unwanted_collisions_present())
 
     target_joint = env.scene.joints_by_name['robot:hinge1_to_arm1']
-    env_velocity = 1.0
+    env_velocity = -1.0
+    target_joint.reset_state(target_joint.lower_limit)
     target_joint.reset_state(target_joint.position(), velocity=env_velocity)
 
     # a = env.scene.items_by_name['robot:hinge1']
@@ -325,7 +327,7 @@ if __name__ == '__main__':
 
     count = 0
     while True:
-        env.act(np.array([0, 1, 0, 0, 0, 0]), 0, 0)
+        # env.act(np.array([0, 1, 0, 0, 0, 0]), 0, 0)
         # target_joint.reset_state(target_joint.position(), velocity=env_velocity)
         #
         # rr = target_joint.upper_limit - target_joint.lower_limit
@@ -336,8 +338,8 @@ if __name__ == '__main__':
         #     env_velocity = -1.0
 
 
-        # for _ in range(env.world.frame_skip):
-        #     print(f'{target_joint.position()} @ {target_joint.velocity()} - {target_joint.lower_limit}..{target_joint.upper_limit}')
-        #     env.bullet.stepSimulation()
+        for _ in range(env.world.frame_skip):
+            print(f'{target_joint.position()} @ {target_joint.velocity()} - {target_joint.lower_limit}..{target_joint.upper_limit}')
+            env.bullet.stepSimulation()
 
         sleep(env.world.step_time)

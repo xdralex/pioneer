@@ -22,7 +22,7 @@ def eval_agent(checkpoint_file: str):
             award_slope=env_config['award_slope'],
             penalty_step=env_config['penalty_step']
         )
-        pioneer_env = PioneerEnv(pioneer_config=pioneer_config)
+        pioneer_env = PioneerEnv(pioneer_config=pioneer_config, debug=True)
         return TimeLimit(pioneer_env, max_episode_steps=500)
 
     register_env('Pioneer-v1', prepare_env)
@@ -73,4 +73,4 @@ def eval_agent(checkpoint_file: str):
 
 
 if __name__ == '__main__':
-    eval_agent(checkpoint_file='/Users/xdralex/Data/checkpoints/0001 - velocity_no_obstacles/checkpoint-1000')
+    eval_agent(checkpoint_file='/Users/xdralex/Data/checkpoints/0002 - velocity_no_obstacles_sloped/checkpoint-1000')
