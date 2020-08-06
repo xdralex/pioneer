@@ -72,3 +72,17 @@ CameraImage = namedtuple('CameraImage', ['width',                       # int
                                          'rgb_pixels',                  # List[Tuple[float, float, float, float]]
                                          'depth_pixels',                # List[float]
                                          'segmentation_mask_buffer'])   # List[int]
+
+
+DynamicsInfo = namedtuple('DynamicsInfo', ['mass',                          # float
+                                           'lateral_friction',              # float
+                                           'local_inertia_diagonal',        # Tuple[float, float, float]
+                                           'local_inertial_pos',            # Tuple[float, float, float]
+                                           'local_inertial_orientation',    # Tuple[float, float, float, float]
+                                           'restitution',                   # float
+                                           'rolling_friction',              # float
+                                           'spinning_friction',             # float
+                                           'contact_damping',               # float
+                                           'contact_stiffness',             # float
+                                           'body_type',                     # int
+                                           'collision_margin'])             # float

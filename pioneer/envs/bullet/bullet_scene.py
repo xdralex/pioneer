@@ -5,7 +5,7 @@ import pybullet
 from pybullet_utils.bullet_client import BulletClient
 
 from pioneer.collections_util import set_optional_kv
-from pioneer.envs.bullet.bullet_bindings import BasePositionAndOrientation, LinkState, BaseVelocity, JointState, ContactPoint
+from pioneer.envs.bullet.bullet_bindings import BasePositionAndOrientation, LinkState, BaseVelocity, JointState, ContactPoint, DynamicsInfo
 
 
 class Pose:
@@ -77,6 +77,31 @@ class Item(object):
             raise AssertionError('Position can be reset only for base items: to control linked items use joint methods')
 
         self.bullet.resetBasePositionAndOrientation(bodyUniqueId=self.body_id, posObj=position, ornObj=orientation)
+
+    def dynamics_info(self) -> DynamicsInfo:
+        return DynamicsInfo(*self.bullet.getDynamicsInfo(self.body_id, self.link_index))
+
+    def update_dynamics(self,
+                        mass: Optional[float] = None,
+                        lateral_friction: Optional[float] = None,
+                        spinning_friction: Optional[float] = None,
+                        rolling_friction: Optional[float] = None,
+                        linear_damping: Optional[float] = None,
+                        angular_damping: Optional[float] = None,
+                        joint_damping: Optional[float] = None):
+        kwargs = {
+            'bodyUniqueId': self.body_id,
+            'linkIndex': self.link_index
+        }
+        set_optional_kv(kwargs, 'mass', mass)
+        set_optional_kv(kwargs, 'lateralFriction', lateral_friction)
+        set_optional_kv(kwargs, 'spinningFriction', spinning_friction)
+        set_optional_kv(kwargs, 'rollingFriction', rolling_friction)
+        set_optional_kv(kwargs, 'linearDamping', linear_damping)
+        set_optional_kv(kwargs, 'angularDamping', angular_damping)
+        set_optional_kv(kwargs, 'jointDamping', joint_damping)
+
+        self.bullet.changeDynamics(**kwargs)
 
     @property
     def index(self):
@@ -173,6 +198,31 @@ class Joint(object):
         set_optional_kv(kwargs, 'targetVelocity', velocity)
 
         self.bullet.resetJointState(**kwargs)
+
+    def dynamics_info(self) -> DynamicsInfo:
+        return DynamicsInfo(*self.bullet.getDynamicsInfo(self.body_id, self.joint_index))
+
+    def update_dynamics(self,
+                        mass: Optional[float] = None,
+                        lateral_friction: Optional[float] = None,
+                        spinning_friction: Optional[float] = None,
+                        rolling_friction: Optional[float] = None,
+                        linear_damping: Optional[float] = None,
+                        angular_damping: Optional[float] = None,
+                        joint_damping: Optional[float] = None):
+        kwargs = {
+            'bodyUniqueId': self.body_id,
+            'linkIndex': self.joint_index
+        }
+        set_optional_kv(kwargs, 'mass', mass)
+        set_optional_kv(kwargs, 'lateralFriction', lateral_friction)
+        set_optional_kv(kwargs, 'spinningFriction', spinning_friction)
+        set_optional_kv(kwargs, 'rollingFriction', rolling_friction)
+        set_optional_kv(kwargs, 'linearDamping', linear_damping)
+        set_optional_kv(kwargs, 'angularDamping', angular_damping)
+        set_optional_kv(kwargs, 'jointDamping', joint_damping)
+
+        self.bullet.changeDynamics(**kwargs)
 
     @property
     def index(self):
@@ -310,7 +360,3 @@ class World:
 
     def step(self):
         self.bullet.stepSimulation()
-
-    @property
-    def step_time(self) -> float:
-        return self.timestep * self.frame_skip
