@@ -23,10 +23,10 @@ class PioneerConfig:
 
     done_distance: float = 0.01                                                     # units
 
-    award_max: float = 100.0                                                        # $
-    award_done: float = 5.0                                                         # $
-    award_slope: float = 1
-    penalty_step: float = 1 / 100                                                   # $
+    award_max: float = 1.0                                                          # $
+    award_done: float = 0.0                                                         # $
+    award_slope: float = 3
+    penalty_step: float = 0                                                         # $
 
     target_lo: Tuple[float, float, float] = (1.5, -1.0, 0.2)                        # units
     target_hi: Tuple[float, float, float] = (2.5, 1.0, 0.6)                         # units
@@ -69,6 +69,9 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
         # reached/set at the end of an action
         self.potential: Optional[float] = 0                                 # ($)
 
+        # solution
+        self.ik_solution: Optional[np.ndarray] = None
+
         # obstacles
         self.obstacle_size: Optional[np.ndarray] = None
         self.obstacle_position: Optional[np.ndarray] = None
@@ -83,14 +86,7 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
         self.reward_range = (-float('inf'), float('inf'))
 
     def reset_world(self) -> bool:
-        assert len(self.config.target_lo) == 3
-        assert len(self.config.target_hi) == 3
-
-        assert len(self.config.obstacle_size_lo) == 3
-        assert len(self.config.obstacle_size_hi) == 3
-        assert len(self.config.obstacle_pos_lo) == 2
-        assert len(self.config.obstacle_pos_hi) == 2
-
+        # Updating dynamics
         for joint_element in self.scene.joints:
             joint_element.update_dynamics(lateral_friction=0,
                                           spinning_friction=0,
@@ -106,6 +102,15 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
                                          linear_damping=0,
                                          angular_damping=0,
                                          joint_damping=0)
+
+        # creating obstacles and the target, setting initial joint position
+        assert len(self.config.target_lo) == 3
+        assert len(self.config.target_hi) == 3
+
+        assert len(self.config.obstacle_size_lo) == 3
+        assert len(self.config.obstacle_size_hi) == 3
+        assert len(self.config.obstacle_pos_lo) == 2
+        assert len(self.config.obstacle_pos_hi) == 2
 
         joint_positions = self.np_random.uniform(self.r_lo, self.r_hi)
         target_position = tuple(self.np_random.uniform(np.array(self.config.target_lo), np.array(self.config.target_hi)))
@@ -143,6 +148,16 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
         self.reset_joint_states(joint_positions)
         self.world.step()
 
+        # computing inverse kinematics
+        effector = self.scene.items_by_name['robot:pointer']
+        target = self.scene.items_by_name['target:aim']
+
+        self.ik_solution = np.array(list(self.bullet.calculateInverseKinematics(
+            bodyUniqueId=effector.body_id,
+            endEffectorLinkIndex=effector.link_index,
+            targetPosition=target.pose().xyz)), dtype=np.float32)
+
+        # checking for collisions
         return not self.unwanted_collisions_present()
 
     def seed(self, seed=None) -> List[int]:
@@ -212,9 +227,14 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
         r_lo_dist = r - self.r_lo
         r_hi_diff = self.r_hi - r
 
+        solution_dist = r - self.ik_solution
+
         return np.concatenate([
             r, np.cos(r), np.sin(r),
             v, np.cos(v), np.sin(v),
+
+            self.ik_solution, np.cos(self.ik_solution), np.sin(self.ik_solution),
+            solution_dist, np.cos(solution_dist), np.sin(solution_dist),
 
             self.r_lo, np.cos(self.r_lo), np.sin(self.r_lo),
             self.r_hi, np.cos(self.r_hi), np.sin(self.r_hi),
@@ -275,6 +295,12 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
 
         return m / (distance * s + 1)
 
+    # def compute_potential(self, distance: float) -> float:
+    #     m = self.config.award_max - self.config.award_done      # max potential (achieved when the distance is 0)
+    #     s = self.config.award_slope                             # slope of the potential curve
+    #
+    #     return m - distance * s
+
     def unwanted_collisions_present(self) -> bool:
         contacts = self.contacts()
 
@@ -332,8 +358,19 @@ class PioneerEnv(BulletEnv[Action, Observation], utils.EzPickle):
 if __name__ == '__main__':
     env = PioneerEnv(headless=False, render_config=RenderConfig(camera_distance=4))
     env.reset_joint_states(np.array([0, 0, 0, 0, 0, 0]))
-
     env.reset_gui_camera()
+
+    effector = env.scene.items_by_name['robot:pointer']
+    target = env.scene.items_by_name['target:aim']
+
+    ik_solution = env.bullet.calculateInverseKinematics(
+        bodyUniqueId=effector.body_id,
+        endEffectorLinkIndex=effector.link_index,
+        targetPosition=target.pose().xyz)
+    print(ik_solution)
+
+    env.reset_joint_states(np.array(list(ik_solution)))
+
 
     # env.reset_joint_positions(np.array([0.481, 1.033, -0.875, -0.850, -0.144, -0.689]))
     # print(env.scene.items_by_name['robot:pointer'].pose().xyz)
@@ -349,10 +386,10 @@ if __name__ == '__main__':
     # for x in env.scene.items:
     #     x.update_dynamics(lateral_friction=0, spinning_friction=0, rolling_friction=0, linear_damping=0, angular_damping=0, joint_damping=0)
 
-    env.bullet.stepSimulation()
+    # env.bullet.stepSimulation()
 
 
-    target_joint = env.scene.joints_by_name['robot:hinge1_to_arm1']
+    # target_joint = env.scene.joints_by_name['robot:hinge1_to_arm1']
     # target_joint.update_dynamics(lateral_friction=0, spinning_friction=0, rolling_friction=0, linear_damping=0, angular_damping=0, joint_damping=0)
 
     # print(target_joint.dynamics_info())
@@ -361,7 +398,7 @@ if __name__ == '__main__':
     # env_velocity = 0.1
     # target_joint.reset_state(target_joint.position(), velocity=env_velocity)
 
-    target_joint.control_velocity(10)
+    # target_joint.control_velocity(10)
 
     # a = env.scene.items_by_name['robot:hinge1']
     # b = env.scene.items_by_name['robot:arm1']

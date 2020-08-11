@@ -51,9 +51,9 @@ def train_agent(results_dir: str,
                            'monitor': monitor,
 
                            'env_config': {
-                               'award_done': 5,
-                               'award_slope': tune.loguniform(1, 10),
-                               'penalty_step': 0.01
+                               'award_done': 0,
+                               'award_slope': 3,  # tune.loguniform(1, 10),
+                               'penalty_step': 0
                            },
 
                            'model': {
@@ -62,7 +62,7 @@ def train_agent(results_dir: str,
                            'train_batch_size': 8000,
                            # 'entropy_coeff_schedule': [(0, 5e-2), (1000000, 0)],
                            # 'entropy_coeff_schedule': tune.sample_from(lambda _: entropy_coeff_schedule(1e-3, 1e-1, 1000000)),
-                           'lr': tune.loguniform(1e-5, 1e-4),
+                           'lr': 5e-6,  # tune.loguniform(0.5e-5, 2e-5, base=2.0),
                            'num_sgd_iter': 20,
                            'observation_filter': 'ConcurrentMeanStdFilter'
                        },
@@ -81,5 +81,5 @@ if __name__ == '__main__':
     train_agent(results_dir='~/Data/ray_results',
                 checkpoint_freq=10,
                 num_samples=1,
-                num_workers=1,
+                num_workers=4,
                 monitor=True)
